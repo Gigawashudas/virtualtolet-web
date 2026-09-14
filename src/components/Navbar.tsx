@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Bookmark, Search, UserRound } from "lucide-react";
+import { Bell, Bookmark, Moon, Search, Sun } from "lucide-react";
 
 import VirtualToletLogo from "@/components/VirtualToletLogo";
 
@@ -28,14 +28,31 @@ const navLinks = [
   },
 ];
 
+function ThemeToggle() {
+  function toggleTheme() {
+    const isDark = document.documentElement.classList.contains("dark");
+    const nextIsDark = !isDark;
+
+    document.documentElement.classList.toggle("dark", nextIsDark);
+
+    window.localStorage.setItem("virtualtolet-theme", nextIsDark ? "dark" : "light");
+  }
+
+  return (
+    <button type="button" aria-label="Toggle theme" title="Toggle theme" onClick={toggleTheme} className="group flex h-10 w-10 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
+      <Moon className="h-5 w-5 dark:hidden" strokeWidth={1.8} />
+
+      <Sun className="hidden h-5 w-5 dark:block" strokeWidth={1.8} />
+    </button>
+  );
+}
+
 export default function Navbar() {
   return (
     <header className="border-b border-border bg-background">
       <div className="mx-auto flex h-[72px] max-w-[1440px] items-center justify-between px-6 sm:px-8 lg:px-10">
-        {/* Logo */}
         <VirtualToletLogo />
 
-        {/* Desktop Navigation */}
         <nav className="hidden items-center gap-5 lg:flex">
           {navLinks.map(({ label, href, icon: Icon }) => (
             <Link key={label} href={href} className="group flex items-center gap-1.5 rounded-md px-2 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
@@ -46,21 +63,15 @@ export default function Navbar() {
           ))}
         </nav>
 
-        {/* Actions */}
         <div className="flex items-center gap-1.5">
-          {/* Theme */}
-          <button type="button" aria-label="Toggle theme" className="flex h-10 w-10 items-center justify-center rounded-lg text-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
-            ☾
-          </button>
+          <ThemeToggle />
 
-          {/* Notifications */}
           <button type="button" aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
             <Bell className="h-5 w-5" strokeWidth={1.8} />
 
             <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-brand-red" />
           </button>
 
-          {/* Profile */}
           <Link href="/profile" aria-label="Profile" className="group flex h-11 items-center gap-2 rounded-lg px-1.5 transition-colors hover:bg-hover-background">
             <span className="flex h-8.5 w-8.5 items-center justify-center rounded-full bg-brand-green text-xs font-bold text-white transition-colors group-hover:bg-hover-text group-hover:text-background">G</span>
 

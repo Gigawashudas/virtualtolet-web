@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { ChevronRight, Home, Plus, Search, UserRound, Bookmark } from "lucide-react";
+import { Bookmark, ChevronRight, Home, Plus, Search, UserRound } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
 import VirtualToletLogo from "@/components/VirtualToletLogo";
+import { createClient } from "@/lib/supabase/server";
 
 const featuredListings = [
   {
@@ -172,7 +174,17 @@ function ServiceItem({ title, description }: { title: string; description: strin
   );
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/sign-in");
+  }
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <Navbar />
