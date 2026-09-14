@@ -1,7 +1,8 @@
 import Link from "next/link";
 
-import { Bell, Bookmark, ChevronRight, Home, Plus, Search, UserRound } from "lucide-react";
+import { ChevronRight, Home, Plus, Search, UserRound, Bookmark } from "lucide-react";
 
+import Navbar from "@/components/Navbar";
 import VirtualToletLogo from "@/components/VirtualToletLogo";
 
 const featuredListings = [
@@ -174,52 +175,7 @@ function ServiceItem({ title, description }: { title: string; description: strin
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
-      {/* NAVBAR */}
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex h-[72px] max-w-[1440px] items-center justify-between px-6 sm:px-8 lg:px-10">
-          <VirtualToletLogo />
-
-          <nav className="hidden items-center gap-7 lg:flex">
-            <Link href="/rentals" className="rounded-md px-2 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
-              Find a Rental
-            </Link>
-
-            <Link href="/post-to-let" className="rounded-md px-2 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
-              Post a TO-LET
-            </Link>
-
-            <Link href="#services" className="rounded-md px-2 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
-              Services
-            </Link>
-
-            <Link href="#" className="rounded-md px-2 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
-              Saved
-            </Link>
-          </nav>
-
-          <div className="flex items-center gap-1.5">
-            <button type="button" aria-label="Toggle theme" className="flex h-10 w-10 items-center justify-center rounded-lg text-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
-              ☾
-            </button>
-
-            <button type="button" aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
-              <Bell className="h-5 w-5" strokeWidth={1.8} />
-
-              <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-brand-red" />
-            </button>
-
-            <Link href="#" aria-label="Profile" className="group flex h-11 items-center gap-2 rounded-lg px-1.5 transition-colors hover:bg-hover-background">
-              <span className="flex h-8.5 w-8.5 items-center justify-center rounded-full bg-brand-green text-xs font-bold text-white transition-colors group-hover:bg-hover-text group-hover:text-background">G</span>
-
-              <span className="hidden xl:block">
-                <span className="block max-w-32 truncate text-xs font-semibold text-text-primary transition-colors group-hover:text-hover-text">Gigawashu</span>
-
-                <span className="block text-[10px] text-text-muted transition-colors group-hover:text-hover-text">Profile</span>
-              </span>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <div className="mx-auto max-w-[1440px] px-6 pb-16 sm:px-8 lg:px-10">
         {/* HERO */}
@@ -260,9 +216,9 @@ export default function HomePage() {
 
               <QuickAction icon={Plus} title="Post a TO-LET" description="Share your rental with others." href="/post-to-let" />
 
-              <QuickAction icon={Bookmark} title="Saved listings" description="Keep your favourites close." />
+              <QuickAction icon={Bookmark} title="Saved listings" description="Keep your favourites close." href="/saved" />
 
-              <QuickAction icon={UserRound} title="My profile" description="Manage your account." />
+              <QuickAction icon={UserRound} title="My profile" description="Manage your account." href="/profile" />
             </div>
           </aside>
 
