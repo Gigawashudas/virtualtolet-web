@@ -1,26 +1,147 @@
 @import "tailwindcss";
 
 :root {
+  /* ================================
+     VirtualTolet — Global Color System
+     ================================ */
+
+  /* Brand */
+  --brand-green: #006a4e;
+  --brand-red: #f42a41;
+
+  /* Main */
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #111111;
+
+  /* Surfaces */
+  --surface: #f7f8f5;
+  --surface-hover: #f3f8f5;
+
+  /* Text */
+  --text-primary: #111111;
+  --text-secondary: #5f665f;
+  --text-muted: #858b85;
+  --text-inverse: #ffffff;
+
+  /* Borders */
+  --border: #e2e6e2;
+  --border-strong: #cdd3cd;
+
+  /* Standard Hover */
+  --hover-background: #f3f8f5;
+  --hover-border: #b8d8ca;
+  --hover-text: var(--brand-green);
+
+  /* --hover-background: #fff4f5; */
+  /* --hover-border: #f3c2c9; */
+  --hover-text: var(--brand-red);
+
+  /* Buttons */
+  --button-background: #ffffff;
+  --button-text: #111111;
+
+  /* Links */
+  --link: var(--foreground);
+  --link-hover: var(--brand-green);
+
+  /* Status */
+  --success: var(--brand-green);
+  --danger: var(--brand-red);
+}
+
+/* Hide horizontal scrollbars while keeping scrolling enabled */
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.dark {
+  /* ================================
+     Dark Mode
+     ================================ */
+
+  --background: #000000;
+  --foreground: #ffffff;
+
+  /* Surfaces */
+  --surface: #0d0d0d;
+  --surface-hover: #111a16;
+
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: #b5b5b5;
+  --text-muted: #808080;
+  --text-inverse: #000000;
+
+  /* Borders */
+  --border: #262626;
+  --border-strong: #3a3a3a;
+
+  /* Standard Hover */
+  --hover-background: #0b1713;
+  --hover-border: #164d3a;
+  --hover-text: #5fc9a5;
+
+  /* Buttons */
+  --button-background: #000000;
+  --button-text: #ffffff;
+
+  /* Links */
+  --link: var(--foreground);
+  --link-hover: #5fc9a5;
 }
 
 @theme inline {
+  /* Core */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  /* Brand */
+  --color-brand-green: var(--brand-green);
+  --color-brand-red: var(--brand-red);
+
+  /* Surfaces */
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+
+  /* Text */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+
+  /* Borders */
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  /* Standard Hover */
+  --color-hover-background: var(--hover-background);
+  --color-hover-border: var(--hover-border);
+  --color-hover-text: var(--hover-text);
+
+  /* Buttons */
+  --color-button-background: var(--button-background);
+  --color-button-text: var(--button-text);
+
+  /* Links */
+  --color-link: var(--link);
+  --color-link-hover: var(--link-hover);
+
+  /* Typography */
+  --font-sans: var(--font-manrope);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--background);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-manrope), sans-serif;
 }
