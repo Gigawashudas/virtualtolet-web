@@ -6,15 +6,19 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
 
-  if (code) {
-    const supabase = await createClient();
-
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-    if (!error) {
-      return NextResponse.redirect(new URL("/", requestUrl.origin));
-    }
+  if (!code) {
+    return NextResponse.redirect(new URL("/sign-in?error=no-code", requestUrl.origin));
   }
 
-  return NextResponse.redirect(new URL("/sign-in?error=auth", requestUrl.origin));
+  const supabase = await createClient();
+
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+  if (error) {
+    console.error("AUTH CALLBACK ERROR:", error);
+
+    return NextResponse.redirect(new URL(`/sign-in?error=${encodeURIComponent(error.message)}`, requestUrl.origin));
+  }
+
+  return NextResponse.redirect(new URL("/", requestUrl.origin));
 }
