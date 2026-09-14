@@ -7,7 +7,7 @@ import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import GoogleLogo from "@/components/GoogleLogo";
 import { createClient } from "@/lib/supabase/client";
 
-const authCallbackUrl = "https://virtualtolet.com/auth/callback";
+const authCallbackUrl = "https://www.virtualtolet.com/auth/callback";
 
 export default function SignUpPage() {
   const router = useRouter();
