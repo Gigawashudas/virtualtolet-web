@@ -14,11 +14,9 @@ export default function SignInPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
   const [error, setError] = useState("");
 
   async function handleSignIn(event: React.FormEvent<HTMLFormElement>) {
@@ -105,9 +103,15 @@ export default function SignInPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="mb-2 block text-sm font-bold text-text-primary">
-                    Password
-                  </label>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label htmlFor="password" className="block text-sm font-bold text-text-primary">
+                      Password
+                    </label>
+
+                    <Link href="/forgot-password" className="text-xs font-bold text-text-secondary transition-colors hover:text-hover-text">
+                      Forgot password?
+                    </Link>
+                  </div>
 
                   <div className="relative">
                     <input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Your password" autoComplete="current-password" required className="h-12 w-full rounded-xl border border-border bg-background px-4 pr-12 text-sm text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-brand-green" />
