@@ -5,9 +5,7 @@ import { redirect } from "next/navigation";
 import { Bookmark, ChevronRight, Home, Plus, Search, UserRound } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
-
 import VirtualToletLogo from "@/components/VirtualToletLogo";
-
 import { createClient } from "@/lib/supabase/server";
 
 type PublishedListing = {
@@ -94,7 +92,11 @@ function getListingDetails(listing: PublishedListing) {
   }
 
   if (listing.listing_type === "room") {
-    const occupancy = listing.details?.occupancy as { capacity?: number } | undefined;
+    const occupancy = listing.details?.occupancy as
+      | {
+          capacity?: number;
+        }
+      | undefined;
 
     const details = [occupancy?.capacity ? `${occupancy.capacity} people` : null, unit?.size_sqft !== null && unit?.size_sqft !== undefined ? `${unit.size_sqft} sqft` : null].filter(Boolean);
 
@@ -141,17 +143,17 @@ function getLocation(listing: PublishedListing) {
   return parts.join(" · ") || "Location not specified";
 }
 
-function ListingCard({ listing, featured = false, verified = false }: { listing: PublishedListing; featured?: boolean; verified?: boolean }) {
-  const media = [...(listing.listing_media ?? [])].sort((a, b) => a.sort_order - b.sort_order)[0];
+function ListingCard({ listing }: { listing: PublishedListing }) {
+  const media = [...(listing.listing_media ?? [])].sort((a, b) => a.sort_order - b.sort_order).find((item) => item.media_type === "image");
 
   const imageUrl = media ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/listing-media/${media.storage_path}` : null;
 
   return (
-    <Link href={`/rentals/${listing.id}`} className={["group overflow-hidden rounded-xl border border-border bg-background", "transition-all duration-200", "hover:-translate-y-0.5 hover:border-hover-border hover:shadow-sm", featured ? "w-full" : "w-[280px] shrink-0"].join(" ")}>
+    <Link href={`/rentals/${listing.id}`} className={["group overflow-hidden rounded-xl border border-border bg-background", "transition-all duration-200", "hover:-translate-y-0.5 hover:border-hover-border hover:shadow-sm"].join(" ")}>
       <div className="flex h-40 items-center justify-center bg-surface">{imageUrl ? <img src={imageUrl} alt={media?.alt_text ?? listing.title} className="h-full w-full object-cover" /> : <Home className="h-7 w-7 text-text-muted" strokeWidth={1.5} />}</div>
 
       <div className="p-4">
-        <div className="mb-2 min-h-5">{verified && <span className="inline-flex rounded-md bg-brand-green/10 px-2 py-1 text-[9px] font-bold tracking-[0.12em] text-brand-green">VERIFIED</span>}</div>
+        <div className="mb-2 min-h-5" />
 
         <h3 className="line-clamp-2 text-sm font-bold leading-5 text-text-primary">{listing.title}</h3>
 
@@ -164,23 +166,6 @@ function ListingCard({ listing, featured = false, verified = false }: { listing:
         </div>
       </div>
     </Link>
-  );
-}
-
-function SectionHeader({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="mb-5 flex items-end justify-between gap-4">
-      <div>
-        <h2 className="text-xl font-bold tracking-tight text-text-primary">{title}</h2>
-
-        <p className="mt-1 text-sm text-text-secondary">{description}</p>
-      </div>
-
-      <Link href="/rentals" className="hidden items-center gap-1 text-sm font-semibold text-brand-green transition-colors hover:text-hover-text sm:flex">
-        View all
-        <ChevronRight className="h-4 w-4" />
-      </Link>
-    </div>
   );
 }
 
@@ -273,8 +258,6 @@ export default async function HomePage() {
 
   const publishedListings = (listings ?? []) as unknown as PublishedListing[];
 
-  const featuredListings = publishedListings.slice(0, 4);
-
   return (
     <main className="min-h-screen bg-background text-foreground">
       <Navbar />
@@ -298,7 +281,7 @@ export default async function HomePage() {
 
               <span className="flex-1 text-sm font-medium text-text-muted transition-colors group-hover:text-hover-text">Search homes, areas or rent</span>
 
-              <ChevronRight className="h-5 w-5 text-text-muted transition-colors group-hover:text-hover-text" />
+              <ChevronRight className="h-5 w-5 text-text-muted transition-colors group-hover:text-hover-text" strokeWidth={1.8} />
             </Link>
           </div>
         </section>
@@ -326,22 +309,12 @@ export default async function HomePage() {
 
           {/* MAIN */}
           <div className="min-w-0">
-            {/* FEATURED */}
-            {featuredListings.length > 0 && (
-              <section className="mb-12">
-                <SectionHeader title="Featured TO-LET" description="Listings worth taking a closer look at" />
+            <section>
+              <div className="mb-5">
+                <h2 className="text-xl font-bold tracking-tight text-text-primary">Available TO-LETs</h2>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {featuredListings.map((listing) => (
-                    <ListingCard key={listing.id} listing={listing} featured verified />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ACTIVE */}
-            <section className="mb-4">
-              <SectionHeader title="Active TO-LET" description="Currently listed rental homes" />
+                <p className="mt-1 text-sm text-text-secondary">Currently available rental listings</p>
+              </div>
 
               {publishedListings.length === 0 ? (
                 <div className="rounded-xl border border-border bg-surface px-6 py-12 text-center">
@@ -352,7 +325,7 @@ export default async function HomePage() {
                   <p className="mt-2 text-sm text-text-secondary">New verified listings will appear here.</p>
                 </div>
               ) : (
-                <div className="hide-scrollbar -mt-2 flex gap-4 overflow-x-auto px-0.5 pb-2 pt-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {publishedListings.map((listing) => (
                     <ListingCard key={listing.id} listing={listing} />
                   ))}
