@@ -1,92 +1,52 @@
 import Link from "next/link";
+
 import { redirect } from "next/navigation";
 
 import { Bookmark, ChevronRight, Home, Plus, Search, UserRound } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
+
 import VirtualToletLogo from "@/components/VirtualToletLogo";
+
 import { createClient } from "@/lib/supabase/server";
 
-const featuredListings = [
-  {
-    title: "Spacious 3 Bedroom Apartment",
-    location: "Block C · Road 8 · Bashundhara R/A",
-    rent: "৳35,000 / month",
-    details: "3 Bed · 3 Bath · 1,450 sqft",
-  },
-  {
-    title: "Modern Family Apartment",
-    location: "Block D · Road 12 · Bashundhara R/A",
-    rent: "৳42,000 / month",
-    details: "3 Bed · 3 Bath · 1,650 sqft",
-  },
-  {
-    title: "Bright Corner Apartment",
-    location: "Block E · Road 4 · Bashundhara R/A",
-    rent: "৳30,000 / month",
-    details: "2 Bed · 2 Bath · 1,150 sqft",
-  },
-  {
-    title: "Large Family Home",
-    location: "Block F · Road 7 · Bashundhara R/A",
-    rent: "৳48,000 / month",
-    details: "4 Bed · 4 Bath · 1,900 sqft",
-  },
-];
-
-const verifiedListings = [
-  {
-    title: "2 Bedroom Apartment",
-    location: "Block A · Road 5",
-    rent: "৳25,000 / month",
-    details: "2 Bed · 2 Bath · 1,000 sqft",
-  },
-  {
-    title: "Family Apartment",
-    location: "Block B · Road 9",
-    rent: "৳32,000 / month",
-    details: "3 Bed · 3 Bath · 1,300 sqft",
-  },
-  {
-    title: "Compact 2 Bedroom",
-    location: "Block C · Road 3",
-    rent: "৳22,000 / month",
-    details: "2 Bed · 2 Bath · 900 sqft",
-  },
-  {
-    title: "Modern 3 Bedroom",
-    location: "Block D · Road 6",
-    rent: "৳36,000 / month",
-    details: "3 Bed · 3 Bath · 1,400 sqft",
-  },
-];
-
-const activeListings = [
-  {
-    title: "3 Bedroom Apartment",
-    location: "Block D · Road 2",
-    rent: "৳38,000 / month",
-    details: "3 Bed · 3 Bath · 1,500 sqft",
-  },
-  {
-    title: "2 Bedroom Family Home",
-    location: "Block E · Road 11",
-    rent: "৳28,000 / month",
-    details: "2 Bed · 2 Bath · 1,050 sqft",
-  },
-  {
-    title: "Large 4 Bedroom Apartment",
-    location: "Block G · Road 6",
-    rent: "৳50,000 / month",
-    details: "4 Bed · 4 Bath · 2,000 sqft",
-  },
-  {
-    title: "Bright 3 Bedroom Home",
-    location: "Block H · Road 4",
-    rent: "৳34,000 / month",
-    details: "3 Bed · 3 Bath · 1,350 sqft",
-  },
-];
+type PublishedListing = {
+  id: string;
+  title: string;
+  listing_type: string;
+  monthly_rent: number | null;
+  service_charge: number | null;
+  available_from: string | null;
+  details: Record<string, unknown>;
+  properties: {
+    area: string;
+    house_number: string | null;
+    address_line: string | null;
+  } | null;
+  property_units:
+    | {
+        unit_label: string | null;
+        floor: number | null;
+        bedrooms: number | null;
+        bathrooms: number | null;
+        size_sqft: number | null;
+      }
+    | {
+        unit_label: string | null;
+        floor: number | null;
+        bedrooms: number | null;
+        bathrooms: number | null;
+        size_sqft: number | null;
+      }[]
+    | null;
+  listing_media: {
+    id: string;
+    storage_path: string;
+    media_type: string;
+    alt_text: string | null;
+    sort_order: number;
+  }[];
+};
 
 const services = [
   ["Electrician", "Electrical work"],
@@ -97,24 +57,110 @@ const services = [
   ["AC Service", "Repair & maintenance"],
 ];
 
-function ListingCard({ listing, featured = false, verified = false }: { listing: (typeof featuredListings)[number]; featured?: boolean; verified?: boolean }) {
+function formatRent(value: number | null) {
+  if (value === null) {
+    return "Rent not specified";
+  }
+
+  return `৳${new Intl.NumberFormat("en-BD").format(value)} / month`;
+}
+
+function formatListingType(value: string) {
+  const labels: Record<string, string> = {
+    apartment: "Apartment",
+    room: "Room",
+    hostel_seat: "Seat",
+    garage: "Garage",
+  };
+
+  return labels[value] ?? value;
+}
+
+function getPropertyUnit(listing: PublishedListing) {
+  if (Array.isArray(listing.property_units)) {
+    return listing.property_units[0] ?? null;
+  }
+
+  return listing.property_units;
+}
+
+function getListingDetails(listing: PublishedListing) {
+  const unit = getPropertyUnit(listing);
+
+  if (listing.listing_type === "apartment") {
+    const details = [unit?.bedrooms !== null && unit?.bedrooms !== undefined ? `${unit.bedrooms} Bed` : null, unit?.bathrooms !== null && unit?.bathrooms !== undefined ? `${unit.bathrooms} Bath` : null, unit?.size_sqft !== null && unit?.size_sqft !== undefined ? `${unit.size_sqft} sqft` : null].filter(Boolean);
+
+    return details.join(" · ") || "Apartment";
+  }
+
+  if (listing.listing_type === "room") {
+    const occupancy = listing.details?.occupancy as { capacity?: number } | undefined;
+
+    const details = [occupancy?.capacity ? `${occupancy.capacity} people` : null, unit?.size_sqft !== null && unit?.size_sqft !== undefined ? `${unit.size_sqft} sqft` : null].filter(Boolean);
+
+    return details.join(" · ") || "Room";
+  }
+
+  if (listing.listing_type === "hostel_seat") {
+    const occupancy = listing.details?.occupancy as
+      | {
+          capacity?: number;
+          availableSeats?: number;
+        }
+      | undefined;
+
+    const details = [occupancy?.availableSeats ? `${occupancy.availableSeats} seats` : null, occupancy?.capacity ? `${occupancy.capacity} people` : null].filter(Boolean);
+
+    return details.join(" · ") || "Seat";
+  }
+
+  if (listing.listing_type === "garage") {
+    const garage = listing.details?.garage as
+      | {
+          vehicleType?: string;
+          garageType?: string;
+          sizeSqft?: number;
+        }
+      | undefined;
+
+    const details = [garage?.vehicleType ?? null, garage?.garageType ?? null, garage?.sizeSqft ? `${garage.sizeSqft} sqft` : null].filter(Boolean);
+
+    return details.join(" · ") || "Garage";
+  }
+
+  return formatListingType(listing.listing_type);
+}
+
+function getLocation(listing: PublishedListing) {
+  if (!listing.properties) {
+    return "Location not specified";
+  }
+
+  const parts = [listing.properties.area, listing.properties.house_number ? `House ${listing.properties.house_number}` : null].filter(Boolean);
+
+  return parts.join(" · ") || "Location not specified";
+}
+
+function ListingCard({ listing, featured = false, verified = false }: { listing: PublishedListing; featured?: boolean; verified?: boolean }) {
+  const media = [...(listing.listing_media ?? [])].sort((a, b) => a.sort_order - b.sort_order)[0];
+
+  const imageUrl = media ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/listing-media/${media.storage_path}` : null;
+
   return (
-    <Link href="#" className={["group overflow-hidden rounded-xl border border-border bg-background", "transition-all duration-200", "hover:-translate-y-0.5 hover:border-hover-border hover:shadow-sm", featured ? "w-full" : "w-[280px] shrink-0"].join(" ")}>
-      <div className="flex h-40 items-center justify-center bg-surface">
-        <Home className="h-7 w-7 text-text-muted" strokeWidth={1.5} />
-      </div>
+    <Link href={`/rentals/${listing.id}`} className={["group overflow-hidden rounded-xl border border-border bg-background", "transition-all duration-200", "hover:-translate-y-0.5 hover:border-hover-border hover:shadow-sm", featured ? "w-full" : "w-[280px] shrink-0"].join(" ")}>
+      <div className="flex h-40 items-center justify-center bg-surface">{imageUrl ? <img src={imageUrl} alt={media?.alt_text ?? listing.title} className="h-full w-full object-cover" /> : <Home className="h-7 w-7 text-text-muted" strokeWidth={1.5} />}</div>
 
       <div className="p-4">
         <div className="mb-2 min-h-5">{verified && <span className="inline-flex rounded-md bg-brand-green/10 px-2 py-1 text-[9px] font-bold tracking-[0.12em] text-brand-green">VERIFIED</span>}</div>
 
         <h3 className="line-clamp-2 text-sm font-bold leading-5 text-text-primary">{listing.title}</h3>
 
-        <p className="mt-1 truncate text-xs text-text-secondary">{listing.location}</p>
+        <p className="mt-1 truncate text-xs text-text-secondary">{getLocation(listing)}</p>
 
         <div className="mt-4">
-          <p className="text-sm font-bold text-text-primary">{listing.rent}</p>
+          <p className="text-sm font-bold text-text-primary">{formatRent(listing.monthly_rent)}</p>
 
-          <p className="mt-0.5 truncate text-xs text-text-muted">{listing.details}</p>
+          <p className="mt-0.5 truncate text-xs text-text-muted">{getListingDetails(listing)}</p>
         </div>
       </div>
     </Link>
@@ -151,7 +197,7 @@ function QuickAction({ icon: Icon, title, description, href = "#" }: { icon: typ
         <span className="mt-0.5 block text-xs leading-4 text-text-secondary">{description}</span>
       </span>
 
-      <ChevronRight className="h-4 w-4 shrink-0 text-text-muted transition-all group-hover:translate-x-0.5 group-hover:text-hover-text" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-text-muted transition-all group-hover:translate-x-0.5 group-hover:text-hover-text" strokeWidth={1.8} />
     </Link>
   );
 }
@@ -169,7 +215,7 @@ function ServiceItem({ title, description }: { title: string; description: strin
         <span className="mt-0.5 block truncate text-xs text-text-secondary">{description}</span>
       </span>
 
-      <ChevronRight className="h-4 w-4 shrink-0 text-text-muted transition-colors group-hover:text-hover-text" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-text-muted transition-colors group-hover:text-hover-text" strokeWidth={1.8} />
     </Link>
   );
 }
@@ -184,6 +230,50 @@ export default async function HomePage() {
   if (!user) {
     redirect("/sign-in");
   }
+
+  const { data: listings, error } = await supabase
+    .from("listings")
+    .select(
+      `
+        id,
+        title,
+        listing_type,
+        monthly_rent,
+        service_charge,
+        available_from,
+        details,
+        properties (
+          area,
+          house_number,
+          address_line
+        ),
+        property_units (
+          unit_label,
+          floor,
+          bedrooms,
+          bathrooms,
+          size_sqft
+        ),
+        listing_media (
+          id,
+          storage_path,
+          media_type,
+          alt_text,
+          sort_order
+        )
+      `,
+    )
+    .eq("publication_status", "published")
+    .eq("rental_lifecycle", "active")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("HOME LISTINGS ERROR:", error);
+  }
+
+  const publishedListings = (listings ?? []) as unknown as PublishedListing[];
+
+  const featuredListings = publishedListings.slice(0, 4);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -237,36 +327,37 @@ export default async function HomePage() {
           {/* MAIN */}
           <div className="min-w-0">
             {/* FEATURED */}
-            <section className="mb-12">
-              <SectionHeader title="Featured TO-LET" description="Listings worth taking a closer look at" />
+            {featuredListings.length > 0 && (
+              <section className="mb-12">
+                <SectionHeader title="Featured TO-LET" description="Listings worth taking a closer look at" />
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {featuredListings.map((listing) => (
-                  <ListingCard key={listing.title} listing={listing} featured />
-                ))}
-              </div>
-            </section>
-
-            {/* VERIFIED */}
-            <section className="mb-12">
-              <SectionHeader title="Recently verified" description="Listings with recent verification activity" />
-
-              <div className="hide-scrollbar -mt-2 flex gap-4 overflow-x-auto px-0.5 pb-2 pt-2">
-                {verifiedListings.map((listing) => (
-                  <ListingCard key={listing.title} listing={listing} verified />
-                ))}
-              </div>
-            </section>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {featuredListings.map((listing) => (
+                    <ListingCard key={listing.id} listing={listing} featured verified />
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* ACTIVE */}
             <section className="mb-4">
               <SectionHeader title="Active TO-LET" description="Currently listed rental homes" />
 
-              <div className="hide-scrollbar -mt-2 flex gap-4 overflow-x-auto px-0.5 pb-2 pt-2">
-                {activeListings.map((listing) => (
-                  <ListingCard key={listing.title} listing={listing} />
-                ))}
-              </div>
+              {publishedListings.length === 0 ? (
+                <div className="rounded-xl border border-border bg-surface px-6 py-12 text-center">
+                  <Home className="mx-auto mb-4 h-8 w-8 text-text-muted" strokeWidth={1.5} />
+
+                  <h3 className="text-lg font-bold text-text-primary">No TO-LETs available</h3>
+
+                  <p className="mt-2 text-sm text-text-secondary">New verified listings will appear here.</p>
+                </div>
+              ) : (
+                <div className="hide-scrollbar -mt-2 flex gap-4 overflow-x-auto px-0.5 pb-2 pt-2">
+                  {publishedListings.map((listing) => (
+                    <ListingCard key={listing.id} listing={listing} />
+                  ))}
+                </div>
+              )}
             </section>
           </div>
 

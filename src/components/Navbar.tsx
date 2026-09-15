@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Bookmark, Moon, Search, Sun } from "lucide-react";
+
+import { Bell, Bookmark, Moon, Search, ShieldCheck, Sun } from "lucide-react";
 
 import VirtualToletLogo from "@/components/VirtualToletLogo";
 
@@ -28,9 +29,14 @@ const navLinks = [
   },
 ];
 
+type NavbarProps = {
+  adminMode?: boolean;
+};
+
 function ThemeToggle() {
   function toggleTheme() {
     const isDark = document.documentElement.classList.contains("dark");
+
     const nextIsDark = !isDark;
 
     document.documentElement.classList.toggle("dark", nextIsDark);
@@ -47,13 +53,20 @@ function ThemeToggle() {
   );
 }
 
-export default function Navbar() {
+export default function Navbar({ adminMode = false }: NavbarProps) {
   return (
     <header className="border-b border-border bg-background">
       <div className="mx-auto flex h-[72px] max-w-[1440px] items-center justify-between px-6 sm:px-8 lg:px-10">
         <VirtualToletLogo />
 
         <nav className="hidden items-center gap-5 lg:flex">
+          {adminMode && (
+            <Link href="/admin" className="group flex items-center gap-1.5 rounded-md px-2 py-2 text-sm font-bold text-brand-green transition-colors hover:bg-hover-background hover:text-hover-text">
+              <ShieldCheck className="h-4 w-4 text-brand-green transition-colors group-hover:text-hover-text" strokeWidth={1.8} />
+              Admin Home
+            </Link>
+          )}
+
           {navLinks.map(({ label, href, icon: Icon }) => (
             <Link key={label} href={href} className="group flex items-center gap-1.5 rounded-md px-2 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
               {Icon && <Icon className="h-4 w-4 text-text-muted transition-colors group-hover:text-hover-text" strokeWidth={1.8} />}

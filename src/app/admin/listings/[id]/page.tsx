@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+
 import { ArrowLeft, CalendarDays, Home, MapPin, ShieldCheck } from "lucide-react";
 
-import VirtualToletLogo from "@/components/VirtualToletLogo";
+import Navbar from "@/components/Navbar";
 import { createClient } from "@/lib/supabase/server";
 
 import ReviewActions from "./ReviewActions";
@@ -67,14 +68,14 @@ export default async function AdminListingReviewPage({ params }: PageProps) {
     redirect("/sign-in");
   }
 
-  const { data: adminUser, error: adminError } = await supabase.from("admin_users").select("user_id").eq("user_id", user.id).eq("is_active", true).maybeSingle();
+  const { data: isAdmin, error: adminError } = await supabase.rpc("is_admin");
 
   if (adminError) {
     console.error("ADMIN ACCESS CHECK ERROR:", adminError);
     redirect("/");
   }
 
-  if (!adminUser) {
+  if (!isAdmin) {
     redirect("/");
   }
 
@@ -140,20 +141,7 @@ export default async function AdminListingReviewPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border">
-        <div className="mx-auto flex h-20 max-w-[1440px] items-center justify-between px-6 sm:px-8 lg:px-10">
-          <VirtualToletLogo />
-
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm font-semibold text-text-secondary sm:inline">Admin</span>
-
-            <Link href="/admin/listings" className="inline-flex h-10 items-center gap-2 rounded-lg border border-border px-4 text-sm font-semibold transition hover:bg-hover-background hover:border-hover-border hover:text-hover-text">
-              <ArrowLeft className="h-4 w-4" />
-              Back to listings
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Navbar adminMode />
 
       <div className="mx-auto max-w-[1200px] px-6 py-10 sm:px-8">
         <div className="mb-8">
@@ -172,6 +160,7 @@ export default async function AdminListingReviewPage({ params }: PageProps) {
             <section className="rounded-2xl border border-border bg-surface p-6">
               <div className="mb-5 flex items-center gap-3">
                 <Home className="h-5 w-5 text-brand-green" />
+
                 <h2 className="text-lg font-bold">Listing details</h2>
               </div>
 
@@ -193,6 +182,7 @@ export default async function AdminListingReviewPage({ params }: PageProps) {
             <section className="rounded-2xl border border-border bg-surface p-6">
               <div className="mb-5 flex items-center gap-3">
                 <MapPin className="h-5 w-5 text-brand-green" />
+
                 <h2 className="text-lg font-bold">Location</h2>
               </div>
 
@@ -211,6 +201,7 @@ export default async function AdminListingReviewPage({ params }: PageProps) {
               <section className="rounded-2xl border border-border bg-surface p-6">
                 <div className="mb-5 flex items-center gap-3">
                   <CalendarDays className="h-5 w-5 text-brand-green" />
+
                   <h2 className="text-lg font-bold">Unit details</h2>
                 </div>
 
