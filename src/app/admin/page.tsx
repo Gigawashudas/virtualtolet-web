@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-
-import { ArrowRight, ClipboardCheck, Home, ShieldCheck } from "lucide-react";
+import { ArrowRight, ClipboardCheck, Home, ShieldCheck, Users, Flag, Settings } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
-
 import { createClient } from "@/lib/supabase/server";
 
 export default async function AdminDashboardPage() {
@@ -45,6 +43,7 @@ export default async function AdminDashboardPage() {
         </div>
 
         <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Listing Verification */}
           <Link href="/admin/listings" className="group rounded-2xl border border-border bg-surface p-6 transition hover:-translate-y-0.5 hover:border-hover-border hover:bg-hover-background">
             <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background">
               <ClipboardCheck className="h-5 w-5 text-brand-green" strokeWidth={1.8} />
@@ -67,6 +66,7 @@ export default async function AdminDashboardPage() {
             </div>
           </Link>
 
+          {/* All Listings */}
           <Link href="/admin/listings/all" className="group rounded-2xl border border-border bg-surface p-6 transition hover:-translate-y-0.5 hover:border-hover-border hover:bg-hover-background">
             <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background">
               <Home className="h-5 w-5 text-brand-green" strokeWidth={1.8} />
@@ -87,6 +87,49 @@ export default async function AdminDashboardPage() {
             </div>
           </Link>
 
+          {/* Users */}
+          <Link href="/admin/users" className="group rounded-2xl border border-border bg-surface p-6 transition hover:-translate-y-0.5 hover:border-hover-border hover:bg-hover-background">
+            <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background">
+              <Users className="h-5 w-5 text-brand-green" strokeWidth={1.8} />
+            </div>
+
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold">Users</h2>
+
+                <p className="mt-2 text-sm leading-6 text-text-secondary">View and manage registered Virtual To-let users.</p>
+              </div>
+
+              <ArrowRight className="mt-1 h-5 w-5 shrink-0 text-brand-green transition group-hover:translate-x-1" strokeWidth={1.8} />
+            </div>
+
+            <div className="mt-6 border-t border-border pt-5">
+              <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-muted">User management</p>
+            </div>
+          </Link>
+
+          {/* Reports */}
+          <Link href="/admin/reports" className="group rounded-2xl border border-border bg-surface p-6 transition hover:-translate-y-0.5 hover:border-hover-border hover:bg-hover-background">
+            <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background">
+              <Flag className="h-5 w-5 text-brand-green" strokeWidth={1.8} />
+            </div>
+
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold">Reports</h2>
+
+                <p className="mt-2 text-sm leading-6 text-text-secondary">Review reported listings and platform activity.</p>
+              </div>
+
+              <ArrowRight className="mt-1 h-5 w-5 shrink-0 text-brand-green transition group-hover:translate-x-1" strokeWidth={1.8} />
+            </div>
+
+            <div className="mt-6 border-t border-border pt-5">
+              <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-muted">Moderation</p>
+            </div>
+          </Link>
+
+          {/* Administration */}
           <div className="rounded-2xl border border-border bg-surface p-6">
             <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background">
               <ShieldCheck className="h-5 w-5 text-brand-green" strokeWidth={1.8} />
@@ -97,9 +140,30 @@ export default async function AdminDashboardPage() {
             <p className="mt-2 text-sm leading-6 text-text-secondary">Platform controls and administrative tools.</p>
 
             <div className="mt-6 border-t border-border pt-5">
-              <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-muted">Coming next</p>
+              <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-muted">Admin access enabled</p>
             </div>
           </div>
+
+          {/* Settings */}
+          <Link href="/admin/settings" className="group rounded-2xl border border-border bg-surface p-6 transition hover:-translate-y-0.5 hover:border-hover-border hover:bg-hover-background">
+            <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background">
+              <Settings className="h-5 w-5 text-brand-green" strokeWidth={1.8} />
+            </div>
+
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold">Settings</h2>
+
+                <p className="mt-2 text-sm leading-6 text-text-secondary">Manage platform and administrative settings.</p>
+              </div>
+
+              <ArrowRight className="mt-1 h-5 w-5 shrink-0 text-brand-green transition group-hover:translate-x-1" strokeWidth={1.8} />
+            </div>
+
+            <div className="mt-6 border-t border-border pt-5">
+              <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-muted">Platform controls</p>
+            </div>
+          </Link>
         </section>
       </div>
     </main>

@@ -1,7 +1,4 @@
 import Link from "next/link";
-
-import { redirect } from "next/navigation";
-
 import { Bookmark, ChevronRight, Home, Plus, Search, UserRound } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -212,10 +209,6 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/sign-in");
-  }
-
   const { data: listings, error } = await supabase
     .from("listings")
     .select(
@@ -258,6 +251,12 @@ export default async function HomePage() {
 
   const publishedListings = (listings ?? []) as unknown as PublishedListing[];
 
+  const postToLetHref = user ? "/post-to-let" : "/sign-in?redirect=/post-to-let";
+
+  const savedHref = user ? "/saved" : "/sign-in?redirect=/saved";
+
+  const profileHref = user ? "/profile" : "/sign-in?redirect=/profile";
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <Navbar />
@@ -299,11 +298,11 @@ export default async function HomePage() {
             <div className="space-y-2">
               <QuickAction icon={Search} title="Find a rental" description="Browse homes around you." href="/rentals" />
 
-              <QuickAction icon={Plus} title="Post a TO-LET" description="Share your rental with others." href="/post-to-let" />
+              <QuickAction icon={Plus} title="Post a TO-LET" description="Share your rental with others." href={postToLetHref} />
 
-              <QuickAction icon={Bookmark} title="Saved listings" description="Keep your favourites close." href="/saved" />
+              <QuickAction icon={Bookmark} title="Saved listings" description="Keep your favourites close." href={savedHref} />
 
-              <QuickAction icon={UserRound} title="My profile" description="Manage your account." href="/profile" />
+              <QuickAction icon={UserRound} title="My profile" description="Manage your account." href={profileHref} />
             </div>
           </aside>
 

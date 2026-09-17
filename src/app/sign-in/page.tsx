@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
 import VirtualToletLogo from "@/components/VirtualToletLogo";
@@ -11,6 +11,7 @@ import GoogleLogo from "@/components/GoogleLogo";
 
 export default function SignInPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,6 +19,8 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const redirectTo = searchParams.get("redirect") || "/";
 
   async function handleSignIn(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,7 +41,7 @@ export default function SignInPage() {
       return;
     }
 
-    router.replace("/");
+    router.replace(redirectTo);
     router.refresh();
   }
 
@@ -51,7 +54,7 @@ export default function SignInPage() {
     const { error: googleError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectTo)}`,
       },
     });
 
@@ -81,15 +84,12 @@ export default function SignInPage() {
             <div className="rounded-2xl border border-border bg-background p-6 shadow-sm sm:p-8">
               <button type="button" onClick={handleGoogleSignIn} disabled={googleLoading || loading} className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-border bg-background text-sm font-bold text-text-primary transition-colors hover:border-hover-border hover:bg-hover-background hover:text-hover-text disabled:cursor-not-allowed disabled:opacity-60">
                 <GoogleLogo />
-
                 {googleLoading ? "Connecting..." : "Continue with Google"}
               </button>
 
               <div className="my-6 flex items-center gap-4">
                 <div className="h-px flex-1 bg-border" />
-
                 <span className="text-xs font-medium text-text-muted">OR</span>
-
                 <div className="h-px flex-1 bg-border" />
               </div>
 
