@@ -1,11 +1,16 @@
 import Link from "next/link";
+
 import { redirect } from "next/navigation";
-import { ArrowRight, Bath, BedDouble, CalendarDays, Car, Check, Home, MapPin, Ruler, Search, Users } from "lucide-react";
+
+import { ArrowRight, Bath, BedDouble, CalendarDays, Car, Check, Home, MapPin, Ruler, Users } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
+
 import RentalFilters from "./components/RentalFilters";
+import RentalSearchInput from "./components/RentalSearchInput";
 import RentalSelectField from "./components/RentalSelectField";
 import RentalSort from "./components/RentalSort";
+
 import { createClient } from "@/lib/supabase/server";
 
 type SearchParams = {
@@ -261,8 +266,11 @@ function normalizeListingType(value: string | null): string {
 
 function getListingFields(listing: Listing) {
   const property = firstRelation(listing.properties);
+
   const unit = firstRelation(listing.property_units);
+
   const preference = firstRelation(listing.listing_preferences);
+
   const details = listing.details;
 
   const listingType = normalizeListingType(listing.listing_type);
@@ -277,53 +285,53 @@ function getListingFields(listing: Listing) {
 
   const floor = numberValue(details, "property.floor") ?? unit?.floor ?? null;
 
-  const roomCapacity = numberValue(details, "occupancy.room_capacity") ?? null;
+  const roomCapacity = numberValue(details, "occupancy.room_capacity");
 
-  const availableSeats = numberValue(details, "occupancy.available_seats") ?? null;
+  const availableSeats = numberValue(details, "occupancy.available_seats");
 
   const suitableFor = stringValue(details, "occupancy.suitable_for") ?? preference?.tenant_preference ?? null;
 
-  const gender = stringValue(details, "occupancy.gender") ?? null;
+  const gender = stringValue(details, "occupancy.gender");
 
-  const bathroomLocation = stringValue(details, "bathroom.location") ?? null;
+  const bathroomLocation = stringValue(details, "bathroom.location");
 
-  const balconyAvailable = booleanValue(details, "balcony.available") ?? null;
+  const balconyAvailable = booleanValue(details, "balcony.available");
 
-  const lift = booleanValue(details, "facilities.lift") ?? null;
+  const lift = booleanValue(details, "facilities.lift");
 
-  const generator = booleanValue(details, "facilities.generator") ?? null;
+  const generator = booleanValue(details, "facilities.generator");
 
-  const security = booleanValue(details, "facilities.security_guard") ?? null;
+  const security = booleanValue(details, "facilities.security_guard");
 
-  const cctv = booleanValue(details, "facilities.cctv") ?? null;
+  const cctv = booleanValue(details, "facilities.cctv");
 
-  const cctvCoverage = stringValue(details, "facilities.cctv_coverage") ?? null;
+  const cctvCoverage = stringValue(details, "facilities.cctv_coverage");
 
-  const gateAccess = stringValue(details, "gate.access") ?? null;
+  const gateAccess = stringValue(details, "gate.access");
 
-  const gateOpenFrom = stringValue(details, "gate.open_from") ?? null;
+  const gateOpenFrom = stringValue(details, "gate.open_from");
 
-  const gateOpenTo = stringValue(details, "gate.open_to") ?? null;
+  const gateOpenTo = stringValue(details, "gate.open_to");
 
-  const vehicleType = stringValue(details, "garage.vehicle_type") ?? null;
+  const vehicleType = stringValue(details, "garage.vehicle_type");
 
-  const garageType = stringValue(details, "garage.garage_type") ?? null;
+  const garageType = stringValue(details, "garage.garage_type");
 
-  const carParking = booleanValue(details, "parking.car.available") ?? null;
+  const carParking = booleanValue(details, "parking.car.available");
 
-  const bikeParking = booleanValue(details, "parking.bike.available") ?? null;
+  const bikeParking = booleanValue(details, "parking.bike.available");
 
-  const carParkingChargeType = stringValue(details, "parking.car.charge_type") ?? null;
+  const carParkingChargeType = stringValue(details, "parking.car.charge_type");
 
-  const bikeParkingChargeType = stringValue(details, "parking.bike.charge_type") ?? null;
+  const bikeParkingChargeType = stringValue(details, "parking.bike.charge_type");
 
-  const carParkingMonthlyCharge = numberValue(details, "parking.car.monthly_charge") ?? null;
+  const carParkingMonthlyCharge = numberValue(details, "parking.car.monthly_charge");
 
-  const bikeParkingMonthlyCharge = numberValue(details, "parking.bike.monthly_charge") ?? null;
+  const bikeParkingMonthlyCharge = numberValue(details, "parking.bike.monthly_charge");
 
-  const utilityDetails = stringValue(details, "costs.utility_details") ?? null;
+  const utilityDetails = stringValue(details, "costs.utility_details");
 
-  const otherCharges = stringValue(details, "costs.other_charges") ?? null;
+  const otherCharges = stringValue(details, "costs.other_charges");
 
   const securityDeposit = listing.security_deposit ?? numberValue(details, "costs.security_deposit") ?? null;
 
@@ -455,14 +463,18 @@ export default async function RentalsPage({ searchParams }: { searchParams: Prom
   const allListings = (listings ?? []) as Listing[];
 
   const query = params.q?.trim().toLowerCase() ?? "";
+
   const selectedType = normalizeListingType(params.type ?? "");
 
   const filteredListings = allListings.filter((listing) => {
     const fields = getListingFields(listing);
+
     const listingType = fields.listingType;
 
     const isApartment = listingType === "apartment";
+
     const isRoom = listingType === "room";
+
     const isSeat = listingType === "seat" || listingType === "hostel_seat";
 
     const isGarage = listingType === "garage" || listingType === "parking";
@@ -641,11 +653,7 @@ export default async function RentalsPage({ searchParams }: { searchParams: Prom
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-text-secondary">Search</span>
 
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" strokeWidth={1.8} />
-
-                    <input type="search" name="q" defaultValue={params.q ?? ""} placeholder="Title, area, address, unit, parking..." className="h-11 w-full rounded-md border border-border bg-background pl-10 pr-3 text-sm outline-none placeholder:text-text-secondary focus:border-text" />
-                  </div>
+                  <RentalSearchInput defaultValue={params.q ?? ""} />
                 </label>
 
                 <RentalSelectField name="type" label="Listing type" defaultValue={params.type}>

@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
 import { useRouter } from "next/navigation";
-
 import { Check, ChevronDown, ImagePlus, Play, ShieldCheck, Video, X } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
-
 import { createClient } from "@/lib/supabase/client";
 
 type PropertyType = "Apartment" | "Room" | "Seat" | "Garage";
+type PostRole = "owner" | "community";
 
 type ListingMedia = {
   id: string;
@@ -118,10 +116,12 @@ const textareaClass = "mt-2 min-h-28 w-full resize-y rounded-lg border border-bo
 
 const MAX_PHOTOS = 10;
 const MAX_VIDEOS = 2;
+
 const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
 
 const allowedPhotoTypes = ["image/jpeg", "image/png", "image/webp"];
+
 const allowedVideoTypes = ["video/mp4", "video/webm", "video/quicktime"];
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -130,6 +130,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div className="mb-6">
         <h2 className="text-lg font-extrabold text-text-primary">{title}</h2>
       </div>
+
       {children}
     </section>
   );
@@ -140,8 +141,10 @@ function Field({ label, optional = false, children }: { label: string; optional?
     <label className="block">
       <span className="text-sm font-bold text-text-primary">
         {label}
+
         {optional && <span className="ml-2 text-xs font-medium text-text-muted">Optional</span>}
       </span>
+
       {children}
     </label>
   );
@@ -151,6 +154,7 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   return (
     <button type="button" onClick={() => onChange(!checked)} className={`flex items-center justify-between rounded-lg border px-4 py-3 text-left transition ${checked ? "border-brand-green bg-brand-green/5" : "border-border bg-background hover:border-hover-border hover:bg-hover-background"}`}>
       <span className="text-sm font-bold text-text-primary">{label}</span>
+
       <span className={`flex h-5 w-5 items-center justify-center rounded-full border ${checked ? "border-brand-green bg-brand-green text-white" : "border-border-strong"}`}>{checked && <Check className="h-3 w-3" strokeWidth={3} />}</span>
     </button>
   );
@@ -168,88 +172,22 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-1 border-b border-border py-4 last:border-b-0 sm:grid-cols-[190px_1fr] sm:gap-6">
       <span className="text-sm font-bold text-text-secondary">{label}</span>
+
       <span className="text-sm font-semibold text-text-primary">{value || "Not provided"}</span>
     </div>
   );
-}
-
-function getErrorDetails(error: unknown) {
-  if (error instanceof Error) {
-    return {
-      message: error.message,
-      details: "",
-      hint: "",
-      code: "",
-      status: "",
-    };
-  }
-
-  if (typeof error === "object" && error !== null) {
-    const value = error as {
-      message?: string;
-      details?: string;
-      hint?: string;
-      code?: string;
-      status?: number;
-      statusCode?: number;
-    };
-
-    return {
-      message: value.message || "Unknown error",
-      details: value.details || "",
-      hint: value.hint || "",
-      code: value.code || "",
-      status: value.status ?? value.statusCode ?? "",
-    };
-  }
-
-  return {
-    message: String(error),
-    details: "",
-    hint: "",
-    code: "",
-    status: "",
-  };
-}
-
-class ListingSubmissionError extends Error {
-  step: string;
-  originalError: unknown;
-
-  constructor(step: string, originalError: unknown) {
-    const details = getErrorDetails(originalError);
-
-    super([`FAILED AT: ${step}`, "", `MESSAGE: ${details.message || "No message"}`, `CODE: ${details.code || "No code"}`, `DETAILS: ${details.details || "No details"}`, `HINT: ${details.hint || "No hint"}`, `STATUS: ${details.status || "No status"}`].join("\n"));
-
-    this.name = "ListingSubmissionError";
-    this.step = step;
-    this.originalError = originalError;
-  }
-}
-
-function failStep(step: string, error: unknown): never {
-  const details = getErrorDetails(error);
-
-  const debugPayload = {
-    step,
-    message: details.message,
-    code: details.code,
-    details: details.details,
-    hint: details.hint,
-    status: details.status,
-  };
-
-  console.error("LISTING SUBMISSION FAILED:", JSON.stringify(debugPayload, null, 2));
-
-  throw new ListingSubmissionError(step, error);
 }
 
 export default function PostToLetPage() {
   const router = useRouter();
 
   const [form, setForm] = useState<ListingForm>(initialForm);
+  const [postRole, setPostRole] = useState<PostRole>("owner");
+
   const [reviewing, setReviewing] = useState(false);
+
   const [uploadingMedia, setUploadingMedia] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -273,54 +211,54 @@ export default function PostToLetPage() {
     setForm((current) => ({
       ...current,
       propertyType: type,
-      flatNumber: type === "Garage" ? "" : current.flatNumber,
-      floor: type === "Garage" ? "" : current.floor,
-      bikeParking: type === "Garage" ? false : current.bikeParking,
-      carParking: type === "Garage" ? false : current.carParking,
-      utilityDetails: type === "Garage" ? "" : current.utilityDetails,
-      securityDeposit: type === "Garage" ? current.securityDeposit : "",
     }));
   }
 
   function isValidBangladeshPhone(phone: string) {
     const normalized = phone.replace(/[\s-]/g, "");
 
-    return /^(?:\+8801|8801|01)[3-9]\d{8}$/.test(normalized);
+    return /^(01[3-9]\d{8}|\+8801[3-9]\d{8})$/.test(normalized);
   }
 
   async function handleMediaUpload(event: React.ChangeEvent<HTMLInputElement>, mediaType: "photo" | "video") {
     const files = Array.from(event.target.files ?? []);
 
+    event.target.value = "";
+
     if (!files.length) {
       return;
     }
 
-    const currentCount = form.media.filter((media) => media.type === mediaType).length;
+    const currentPhotoCount = form.media.filter((media) => media.type === "photo").length;
 
-    const maxCount = mediaType === "photo" ? MAX_PHOTOS : MAX_VIDEOS;
+    const currentVideoCount = form.media.filter((media) => media.type === "video").length;
 
-    if (currentCount + files.length > maxCount) {
-      window.alert(`You can upload up to ${maxCount} ${mediaType === "photo" ? "photos" : "videos"}.`);
-      event.target.value = "";
+    if (mediaType === "photo" && currentPhotoCount + files.length > MAX_PHOTOS) {
+      window.alert(`You can upload up to ${MAX_PHOTOS} photos.`);
+      return;
+    }
+
+    if (mediaType === "video" && currentVideoCount + files.length > MAX_VIDEOS) {
+      window.alert(`You can upload up to ${MAX_VIDEOS} videos.`);
       return;
     }
 
     const allowedTypes = mediaType === "photo" ? allowedPhotoTypes : allowedVideoTypes;
 
+    const invalidType = files.find((file) => !allowedTypes.includes(file.type));
+
+    if (invalidType) {
+      window.alert(mediaType === "photo" ? "Only JPG, PNG and WebP photos are allowed." : "Only MP4, WebM and MOV videos are allowed.");
+      return;
+    }
+
     const maxSize = mediaType === "photo" ? MAX_PHOTO_SIZE : MAX_VIDEO_SIZE;
 
-    for (const file of files) {
-      if (!allowedTypes.includes(file.type)) {
-        window.alert(`${file.name} is not a supported ${mediaType === "photo" ? "image" : "video"} format.`);
-        event.target.value = "";
-        return;
-      }
+    const oversizedFile = files.find((file) => file.size > maxSize);
 
-      if (file.size > maxSize) {
-        window.alert(`${file.name} is too large. Maximum ${mediaType === "photo" ? "photo" : "video"} size is ${mediaType === "photo" ? "10 MB" : "100 MB"}.`);
-        event.target.value = "";
-        return;
-      }
+    if (oversizedFile) {
+      window.alert(mediaType === "photo" ? "Each photo must be 10 MB or smaller." : "Each video must be 100 MB or smaller.");
+      return;
     }
 
     setUploadingMedia(true);
@@ -334,33 +272,37 @@ export default function PostToLetPage() {
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        throw userError ?? new Error("You must be signed in to upload media.");
+        throw new Error("You must be signed in to upload media.");
       }
 
       const uploadedMedia: ListingMedia[] = [];
 
       for (const file of files) {
-        const extension = file.name.split(".").pop()?.toLowerCase() || "bin";
-        const id = crypto.randomUUID();
-        const path = `${user.id}/${mediaType}/${id}.${extension}`;
+        const extension = file.name.split(".").pop()?.toLowerCase() || (mediaType === "photo" ? "jpg" : "mp4");
 
-        const { error: uploadError } = await supabase.storage.from("listing-media").upload(path, file, {
+        const fileId = crypto.randomUUID();
+
+        const filePath = `${user.id}/${mediaType}/${fileId}.${extension}`;
+
+        const { error: uploadError } = await supabase.storage.from("listing-media").upload(filePath, file, {
           cacheControl: "3600",
-          upsert: false,
           contentType: file.type,
+          upsert: false,
         });
 
         if (uploadError) {
           throw uploadError;
         }
 
-        const { data: publicUrlData } = supabase.storage.from("listing-media").getPublicUrl(path);
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("listing-media").getPublicUrl(filePath);
 
         uploadedMedia.push({
-          id,
+          id: fileId,
           name: file.name,
-          url: publicUrlData.publicUrl,
-          path,
+          url: publicUrl,
+          path: filePath,
           type: mediaType,
         });
       }
@@ -370,47 +312,42 @@ export default function PostToLetPage() {
         media: [...current.media, ...uploadedMedia],
       }));
     } catch (error) {
-      const details = getErrorDetails(error);
+      console.error("MEDIA UPLOAD ERROR:", error);
 
-      console.error(
-        "MEDIA UPLOAD ERROR:",
-        JSON.stringify(
-          {
-            message: details.message,
-            code: details.code,
-            details: details.details,
-            hint: details.hint,
-            status: details.status,
-          },
-          null,
-          2,
-        ),
-      );
-
-      window.alert([`MESSAGE: ${details.message || "Failed to upload media."}`, details.code ? `CODE: ${details.code}` : "", details.details ? `DETAILS: ${details.details}` : "", details.hint ? `HINT: ${details.hint}` : "", details.status ? `STATUS: ${details.status}` : ""].filter(Boolean).join("\n"));
+      window.alert(error instanceof Error ? error.message : "Media upload failed. Please try again.");
     } finally {
       setUploadingMedia(false);
-      event.target.value = "";
     }
   }
 
-  async function removeMedia(mediaToRemove: ListingMedia) {
-    setForm((current) => ({
-      ...current,
-      media: current.media.filter((media) => media.id !== mediaToRemove.id),
-    }));
+  async function removeMedia(media: ListingMedia) {
+    try {
+      const supabase = createClient();
 
-    const supabase = createClient();
+      const { error } = await supabase.storage.from("listing-media").remove([media.path]);
 
-    const { error } = await supabase.storage.from("listing-media").remove([mediaToRemove.path]);
-
-    if (error) {
-      console.error("MEDIA DELETE ERROR:", error);
+      if (error) {
+        console.error("MEDIA DELETE ERROR:", error);
+      }
+    } finally {
+      setForm((current) => ({
+        ...current,
+        media: current.media.filter((item) => item.id !== media.id),
+      }));
     }
   }
 
   function handleReview(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (uploadingMedia) {
+      return;
+    }
+
+    if (!form.contactNumber.trim()) {
+      window.alert("Please enter a contact number.");
+      return;
+    }
 
     if (!isValidBangladeshPhone(form.contactNumber)) {
       window.alert("Please enter a valid Bangladesh mobile number.");
@@ -418,6 +355,11 @@ export default function PostToLetPage() {
     }
 
     setReviewing(true);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   }
 
   async function handleSubmit() {
@@ -431,24 +373,16 @@ export default function PostToLetPage() {
     }
 
     setSubmitting(true);
-    let currentStep = "Starting submission";
 
     try {
       const supabase = createClient();
-
-      currentStep = "Checking authentication";
 
       const {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser();
-      console.log("AUTH USER:", user?.id);
 
       if (userError || !user) {
-        failStep(currentStep, userError ?? new Error("You must be signed in to submit a listing."));
-      }
-
-      if (!user) {
         throw new Error("You must be signed in to submit a listing.");
       }
 
@@ -458,12 +392,13 @@ export default function PostToLetPage() {
 
       const title = form.propertyType === "Apartment" ? `${form.bedrooms || "Apartment"} Bedroom Apartment${form.area ? ` in ${form.area}` : ""}` : form.propertyType === "Room" ? `${form.gender} Room${form.area ? ` in ${form.area}` : ""}` : form.propertyType === "Seat" ? `${form.gender} Seat${form.area ? ` in ${form.area}` : ""}` : `${form.vehicleType} Garage${form.area ? ` in ${form.area}` : ""}`;
 
-      const addressParts = [form.propertyType !== "Garage" && form.flatNumber && `Flat ${form.flatNumber}`, form.propertyType !== "Garage" && form.floor && `${form.floor} Floor`, form.house && `House ${form.house}`, form.road && `Road ${form.road}`, form.block && `Block ${form.block}`].filter(Boolean);
+      const addressParts = [form.flatNumber && `Flat ${form.flatNumber}`, form.floor && `${form.floor} Floor`, form.house && `House ${form.house}`, form.road && `Road ${form.road}`, form.block && `Block ${form.block}`].filter(Boolean);
 
       const addressLine = addressParts.join(", ");
 
-      currentStep = "Creating property";
-
+      /*
+       * Property
+       */
       const { data: property, error: propertyError } = await supabase
         .from("properties")
         .insert({
@@ -480,18 +415,17 @@ export default function PostToLetPage() {
         .single();
 
       if (propertyError || !property) {
-        failStep(currentStep, propertyError ?? new Error("Failed to create property."));
+        throw propertyError ?? new Error("Failed to create property.");
       }
 
-      if (!property) {
-        throw new Error("Failed to create property.");
-      }
-
+      /*
+       * Property unit
+       *
+       * Garage listings do not need a property unit.
+       */
       let unitId: string | null = null;
 
       if (form.propertyType !== "Garage") {
-        currentStep = "Creating property unit";
-
         const unitLabel = form.flatNumber || (form.propertyType === "Apartment" ? "Apartment" : form.propertyType === "Room" ? "Room" : "Seat");
 
         const { data: unit, error: unitError } = await supabase
@@ -509,16 +443,15 @@ export default function PostToLetPage() {
           .single();
 
         if (unitError || !unit) {
-          failStep(currentStep, unitError ?? new Error("Failed to create property unit."));
-        }
-
-        if (!unit) {
-          throw new Error("Failed to create property unit.");
+          throw unitError ?? new Error("Failed to create property unit.");
         }
 
         unitId = unit.id;
       }
 
+      /*
+       * Listing details
+       */
       const details = {
         property: {
           property_type: form.propertyType,
@@ -528,97 +461,149 @@ export default function PostToLetPage() {
           size_sqft: form.size ? Number(form.size) : null,
           available_from: form.availableFrom || null,
         },
+
         occupancy: {
           suitable_for: form.propertyType === "Apartment" ? form.suitableFor : null,
+
           gender: form.propertyType === "Room" || form.propertyType === "Seat" ? form.gender : null,
+
           room_capacity: form.propertyType === "Room" || form.propertyType === "Seat" ? (form.roomCapacity ? Number(form.roomCapacity) : null) : null,
+
           available_seats: form.propertyType === "Seat" && form.availableSeats ? Number(form.availableSeats) : null,
         },
+
         bathroom: {
           location: form.propertyType === "Room" || form.propertyType === "Seat" ? form.bathroomLocation : null,
         },
+
         balcony: {
           available: form.propertyType === "Room" || form.propertyType === "Seat" ? form.balconyAvailable : null,
         },
+
         facilities: {
           lift: form.propertyType === "Garage" ? null : form.lift,
+
           generator: form.propertyType === "Garage" ? null : form.generator,
+
           security_guard: form.security,
+
           cctv: form.cctv,
+
           cctv_coverage: form.cctv ? form.cctvCoverage || null : null,
         },
+
         gate: {
           access: form.gateAccess,
+
           open_from: form.gateAccess === "fixed" ? form.gateOpenFrom || null : null,
+
           open_to: form.gateAccess === "fixed" ? form.gateOpenTo || null : null,
         },
-        parking:
-          form.propertyType === "Garage"
-            ? null
-            : {
-                bike: {
-                  available: form.bikeParking,
-                  charge_type: form.bikeParking ? form.bikeParkingCharge : null,
-                  monthly_charge: form.bikeParking && form.bikeParkingCharge === "extra" && form.bikeParkingChargeAmount.trim() ? Number(form.bikeParkingChargeAmount) : null,
-                },
-                car: {
-                  available: form.carParking,
-                  charge_type: form.carParking ? form.carParkingCharge : null,
-                  monthly_charge: form.carParking && form.carParkingCharge === "extra" && form.carParkingChargeAmount.trim() ? Number(form.carParkingChargeAmount) : null,
-                },
-              },
+
+        parking: {
+          bike: {
+            available: form.propertyType === "Garage" ? null : form.bikeParking,
+
+            charge_type: form.propertyType === "Garage" ? null : form.bikeParking ? form.bikeParkingCharge : null,
+
+            monthly_charge: form.propertyType === "Garage" ? null : form.bikeParking && form.bikeParkingCharge === "extra" && form.bikeParkingChargeAmount.trim() ? Number(form.bikeParkingChargeAmount) : null,
+          },
+
+          car: {
+            available: form.propertyType === "Garage" ? null : form.carParking,
+
+            charge_type: form.propertyType === "Garage" ? null : form.carParking ? form.carParkingCharge : null,
+
+            monthly_charge: form.propertyType === "Garage" ? null : form.carParking && form.carParkingCharge === "extra" && form.carParkingChargeAmount.trim() ? Number(form.carParkingChargeAmount) : null,
+          },
+        },
+
         costs: {
           monthly_rent: form.rent ? Number(form.rent) : null,
+
           service_charge: form.serviceCharge ? Number(form.serviceCharge) : null,
-          utility_details: form.propertyType === "Garage" ? null : form.utilityDetails || null,
+
+          utility_details: form.utilityDetails || null,
+
           other_charges: form.otherCharges || null,
+
           security_deposit: form.propertyType === "Garage" && form.securityDeposit ? Number(form.securityDeposit) : null,
         },
+
         garage:
           form.propertyType === "Garage"
             ? {
                 vehicle_type: form.vehicleType,
+
                 garage_type: form.garageType,
+
                 size_sqft: form.size ? Number(form.size) : null,
               }
             : null,
       };
 
-      currentStep = "Creating listing";
-
+      /*
+       * Listing
+       *
+       * source describes how the listing
+       * entered the system.
+       *
+       * post_role describes who is posting:
+       * owner or community.
+       *
+       * The database trigger validates and
+       * assigns owner_profile_id.
+       */
       const { data: listing, error: listingError } = await supabase
         .from("listings")
         .insert({
           property_id: property.id,
           unit_id: unitId,
+
           created_by: user.id,
+
+          /*
+           * The trigger controls owner_profile_id.
+           * Do not manually assign it here.
+           */
           owner_profile_id: null,
+
           listing_type: listingType,
+
           source: "community",
+
+          post_role: postRole,
+
           title,
+
           description: form.description || null,
+
           monthly_rent: form.rent ? Number(form.rent) : null,
+
           service_charge: form.serviceCharge ? Number(form.serviceCharge) : null,
+
           available_from: form.availableFrom || null,
+
           security_deposit: form.propertyType === "Garage" && form.securityDeposit ? Number(form.securityDeposit) : null,
+
           publication_status: "pending_review",
+
           rental_lifecycle: "active",
+
           availability_state: "needs_confirmation",
+
           details,
         })
         .select("id")
         .single();
 
       if (listingError || !listing) {
-        failStep(currentStep, listingError ?? new Error("Failed to create listing."));
+        throw listingError ?? new Error("Failed to create listing.");
       }
 
-      if (!listing) {
-        throw new Error("Failed to create listing.");
-      }
-
-      currentStep = "Saving contact number";
-
+      /*
+       * Listing-specific contact number
+       */
       const { error: contactError } = await supabase.from("listing_contacts").insert({
         listing_id: listing.id,
         contact_type: "phone",
@@ -629,28 +614,34 @@ export default function PostToLetPage() {
       });
 
       if (contactError) {
-        failStep(currentStep, contactError);
+        throw contactError;
       }
 
+      /*
+       * Apartment tenant preference
+       */
       if (form.propertyType === "Apartment" && form.suitableFor) {
-        currentStep = "Saving apartment tenant preferences";
-
         const { error: preferenceError } = await supabase.from("listing_preferences").insert({
           listing_id: listing.id,
+
           tenant_preference: form.suitableFor.toLowerCase(),
+
           family_allowed: form.suitableFor === "Family" || form.suitableFor === "Both",
+
           male_bachelors_allowed: form.suitableFor === "Bachelor" || form.suitableFor === "Both",
+
           female_bachelors_allowed: form.suitableFor === "Bachelor" || form.suitableFor === "Both",
         });
 
         if (preferenceError) {
-          failStep(currentStep, preferenceError);
+          throw preferenceError;
         }
       }
 
+      /*
+       * Room / seat preference
+       */
       if (form.propertyType === "Room" || form.propertyType === "Seat") {
-        currentStep = "Saving room or seat preferences";
-
         const { error: preferenceError } = await supabase.from("listing_preferences").insert({
           listing_id: listing.id,
           tenant_preference: "not_specified",
@@ -658,13 +649,14 @@ export default function PostToLetPage() {
         });
 
         if (preferenceError) {
-          failStep(currentStep, preferenceError);
+          throw preferenceError;
         }
       }
 
+      /*
+       * Listing media
+       */
       if (form.media.length > 0) {
-        currentStep = "Saving listing media";
-
         const mediaRows = form.media.map((media, index) => ({
           listing_id: listing.id,
           storage_path: media.path,
@@ -677,59 +669,55 @@ export default function PostToLetPage() {
         const { error: mediaError } = await supabase.from("listing_media").insert(mediaRows);
 
         if (mediaError) {
-          failStep(currentStep, mediaError);
+          throw mediaError;
         }
       }
 
-      currentStep = "Creating listing event";
-
+      /*
+       * Listing event
+       */
       const { error: eventError } = await supabase.from("listing_events").insert({
         listing_id: listing.id,
         actor_id: user.id,
         event_type: "created",
+
         event_data: {
-          source: "owner",
+          source: "community",
+          post_role: postRole,
           property_type: form.propertyType,
         },
       });
 
       if (eventError) {
-        failStep(currentStep, eventError);
+        throw eventError;
       }
 
       window.alert("Your listing has been submitted for verification.");
+
       router.replace("/");
       router.refresh();
     } catch (error) {
-      const failedStep = error instanceof ListingSubmissionError ? error.step : currentStep;
-
-      const originalError = error instanceof ListingSubmissionError ? error.originalError : error;
-
-      const details = getErrorDetails(originalError);
-
-      console.error(
-        "LISTING SUBMISSION ERROR:",
-        JSON.stringify(
-          {
-            step: failedStep,
-            message: details.message,
-            code: details.code,
-            details: details.details,
-            hint: details.hint,
-            status: details.status,
-          },
-          null,
-          2,
-        ),
-      );
+      console.error("LISTING SUBMISSION ERROR:", error);
 
       setSubmitting(false);
 
-      window.alert([`FAILED AT: ${failedStep}`, "", `MESSAGE: ${details.message || "No message"}`, details.code ? `CODE: ${details.code}` : "", details.details ? `DETAILS: ${details.details}` : "", details.hint ? `HINT: ${details.hint}` : "", details.status ? `STATUS: ${details.status}` : ""].filter(Boolean).join("\n"));
+      window.alert(error instanceof Error ? error.message : "Failed to submit your listing. Please try again.");
     }
   }
 
-  const locationParts = [form.propertyType !== "Garage" && form.flatNumber && `Flat ${form.flatNumber}`, form.propertyType !== "Garage" && form.floor && `${form.floor} Floor`, form.house && `House ${form.house}`, form.road && `Road ${form.road}`, form.block && `Block ${form.block}`, form.area].filter(Boolean);
+  const locationParts = [form.flatNumber && `Flat ${form.flatNumber}`, form.floor && `${form.floor} Floor`, form.house && `House ${form.house}`, form.road && `Road ${form.road}`, form.block && `Block ${form.block}`, form.area].filter(Boolean);
+
+  function parkingValue(enabled: boolean, charge: string, amount: string) {
+    if (!enabled) {
+      return "Not available";
+    }
+
+    if (charge === "included") {
+      return "Included in rent";
+    }
+
+    return amount ? `৳${amount}/month` : "Extra charge";
+  }
 
   function renderParkingSection(currentForm: ListingForm) {
     return (
@@ -739,6 +727,7 @@ export default function PostToLetPage() {
             <Field label="Bike parking">
               <div className="grid gap-3 sm:grid-cols-2">
                 <ChoiceButton label="Not available" selected={!currentForm.bikeParking} onClick={() => updateField("bikeParking", false)} />
+
                 <ChoiceButton label="Available" selected={currentForm.bikeParking} onClick={() => updateField("bikeParking", true)} />
               </div>
             </Field>
@@ -748,6 +737,7 @@ export default function PostToLetPage() {
                 <Field label="Bike parking charge">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <ChoiceButton label="Included in rent" selected={currentForm.bikeParkingCharge === "included"} onClick={() => updateField("bikeParkingCharge", "included")} />
+
                     <ChoiceButton label="Extra charge" selected={currentForm.bikeParkingCharge === "extra"} onClick={() => updateField("bikeParkingCharge", "extra")} />
                   </div>
                 </Field>
@@ -757,6 +747,7 @@ export default function PostToLetPage() {
                     <Field label="Bike parking monthly charge">
                       <div className="relative">
                         <span className="absolute left-4 top-[26px] text-sm font-bold text-text-secondary">৳</span>
+
                         <input required type="number" min="0" value={currentForm.bikeParkingChargeAmount} onChange={(event) => updateField("bikeParkingChargeAmount", event.target.value)} placeholder="e.g. 1000" className={`${inputClass} pl-9`} />
                       </div>
                     </Field>
@@ -770,6 +761,7 @@ export default function PostToLetPage() {
             <Field label="Car parking">
               <div className="grid gap-3 sm:grid-cols-2">
                 <ChoiceButton label="Not available" selected={!currentForm.carParking} onClick={() => updateField("carParking", false)} />
+
                 <ChoiceButton label="Available" selected={currentForm.carParking} onClick={() => updateField("carParking", true)} />
               </div>
             </Field>
@@ -779,6 +771,7 @@ export default function PostToLetPage() {
                 <Field label="Car parking charge">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <ChoiceButton label="Included in rent" selected={currentForm.carParkingCharge === "included"} onClick={() => updateField("carParkingCharge", "included")} />
+
                     <ChoiceButton label="Extra charge" selected={currentForm.carParkingCharge === "extra"} onClick={() => updateField("carParkingCharge", "extra")} />
                   </div>
                 </Field>
@@ -788,6 +781,7 @@ export default function PostToLetPage() {
                     <Field label="Car parking monthly charge">
                       <div className="relative">
                         <span className="absolute left-4 top-[26px] text-sm font-bold text-text-secondary">৳</span>
+
                         <input required type="number" min="0" value={currentForm.carParkingChargeAmount} onChange={(event) => updateField("carParkingChargeAmount", event.target.value)} placeholder="e.g. 3000" className={`${inputClass} pl-9`} />
                       </div>
                     </Field>
@@ -803,55 +797,80 @@ export default function PostToLetPage() {
 
   if (reviewing) {
     const photos = form.media.filter((media) => media.type === "photo");
+
     const videos = form.media.filter((media) => media.type === "video");
 
     return (
       <main className="min-h-screen bg-background">
         <Navbar />
+
         <div className="mx-auto max-w-4xl px-6 py-12 sm:px-8 lg:px-10">
           <div className="mb-10">
             <p className="mb-3 text-xs font-bold tracking-[0.2em] text-brand-green">REVIEW LISTING</p>
+
             <h1 className="text-3xl font-extrabold tracking-tight text-text-primary sm:text-4xl">Review your listing</h1>
+
             <p className="mt-3 max-w-2xl text-sm leading-6 text-text-secondary">Check the information below before submitting your listing for verification.</p>
           </div>
 
           <div className="rounded-xl border border-border bg-background px-6 sm:px-8">
             <Section title="Property">
               <ReviewRow label="Property type" value={form.propertyType} />
+
+              <ReviewRow label="Post type" value={postRole === "owner" ? "Owner listing" : "Community listing"} />
+
               {form.propertyType === "Apartment" && (
                 <>
                   <ReviewRow label="Suitable for" value={form.suitableFor} />
+
                   <ReviewRow label="Bedrooms" value={form.bedrooms} />
+
                   <ReviewRow label="Bathrooms" value={form.bathrooms} />
+
                   <ReviewRow label="Balconies" value={form.balconies} />
+
                   <ReviewRow label="Size" value={form.size ? `${form.size} sq ft` : ""} />
                 </>
               )}
+
               {form.propertyType === "Room" && (
                 <>
                   <ReviewRow label="For" value={form.gender} />
+
                   <ReviewRow label="Room capacity" value={form.roomCapacity ? `${form.roomCapacity} people` : ""} />
+
                   <ReviewRow label="Room size" value={form.size ? `${form.size} sq ft` : ""} />
+
                   <ReviewRow label="Bathroom" value={form.bathroomLocation} />
+
                   <ReviewRow label="Balcony" value={form.balconyAvailable ? "Yes" : "No"} />
                 </>
               )}
+
               {form.propertyType === "Seat" && (
                 <>
                   <ReviewRow label="For" value={form.gender} />
+
                   <ReviewRow label="Total people in room" value={form.roomCapacity ? `${form.roomCapacity} people` : ""} />
+
                   <ReviewRow label="Available seats" value={form.availableSeats} />
+
                   <ReviewRow label="Bathroom" value={form.bathroomLocation} />
+
                   <ReviewRow label="Balcony" value={form.balconyAvailable ? "Yes" : "No"} />
                 </>
               )}
+
               {form.propertyType === "Garage" && (
                 <>
                   <ReviewRow label="Vehicle type" value={form.vehicleType} />
+
                   <ReviewRow label="Garage type" value={form.garageType} />
+
                   <ReviewRow label="Size" value={form.size ? `${form.size} sq ft` : ""} />
                 </>
               )}
+
               <ReviewRow label="Available from" value={form.availableFrom} />
             </Section>
 
@@ -863,22 +882,37 @@ export default function PostToLetPage() {
               {form.propertyType !== "Garage" && (
                 <>
                   <ReviewRow label="Lift" value={form.lift ? "Available" : "Not available"} />
+
                   <ReviewRow label="Generator" value={form.generator ? "Available" : "Not available"} />
                 </>
               )}
+
               <ReviewRow label="Security guard" value={form.security ? "Available" : "Not available"} />
+
               <ReviewRow label="CCTV" value={form.cctv ? "Available" : "Not available"} />
+
               {form.cctv && <ReviewRow label="CCTV coverage" value={form.cctvCoverage} />}
+
               <ReviewRow label="Gate access" value={form.gateAccess === "24/7" ? "24/7" : form.gateOpenFrom && form.gateOpenTo ? `${form.gateOpenFrom} – ${form.gateOpenTo}` : "Fixed hours"} />
             </Section>
 
             {form.propertyType !== "Garage" && renderParkingSection(form)}
 
+            {form.propertyType === "Garage" && (
+              <Section title="Parking">
+                <ReviewRow label="Parking" value="Not applicable for garage listings" />
+              </Section>
+            )}
+
             <Section title="Rent & Costs">
               <ReviewRow label="Monthly rent" value={form.rent ? `৳${form.rent}` : ""} />
+
               <ReviewRow label="Service charge" value={form.serviceCharge ? `৳${form.serviceCharge}/month` : ""} />
+
               {form.propertyType === "Garage" && <ReviewRow label="Security deposit" value={form.securityDeposit ? `৳${form.securityDeposit}` : ""} />}
-              {form.propertyType !== "Garage" && <ReviewRow label="Utilities" value={form.utilityDetails} />}
+
+              <ReviewRow label="Utilities" value={form.utilityDetails} />
+
               <ReviewRow label="Other charges" value={form.otherCharges || "None"} />
             </Section>
 
@@ -890,6 +924,7 @@ export default function PostToLetPage() {
               {photos.length > 0 && (
                 <>
                   <p className="mb-3 text-xs font-bold uppercase tracking-wider text-text-muted">Photos</p>
+
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {photos.map((photo, index) => (
                       <div key={photo.id} className="overflow-hidden rounded-lg border border-border bg-surface">
@@ -903,6 +938,7 @@ export default function PostToLetPage() {
               {videos.length > 0 && (
                 <div className={photos.length ? "mt-6" : ""}>
                   <p className="mb-3 text-xs font-bold uppercase tracking-wider text-text-muted">Videos</p>
+
                   <div className="grid gap-3 sm:grid-cols-2">
                     {videos.map((video) => (
                       <video key={video.id} src={video.url} controls preload="metadata" className="h-48 w-full rounded-lg border border-border bg-black object-cover" />
@@ -924,8 +960,8 @@ export default function PostToLetPage() {
               Edit listing
             </button>
 
-            <button type="button" onClick={handleSubmit} disabled={submitting} className="h-12 rounded-lg bg-brand-green px-6 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
-              {submitting ? "Submitting..." : "Submit listing"}
+            <button type="button" onClick={handleSubmit} disabled={submitting} className="h-12 rounded-lg bg-brand-green px-7 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+              {submitting ? "Submitting..." : "Submit for verification"}
             </button>
           </div>
         </div>
@@ -933,378 +969,460 @@ export default function PostToLetPage() {
     );
   }
 
+  const photos = form.media.filter((media) => media.type === "photo");
+
+  const videos = form.media.filter((media) => media.type === "video");
+
   return (
     <main className="min-h-screen bg-background">
       <Navbar />
 
       <div className="mx-auto max-w-5xl px-6 py-12 sm:px-8 lg:px-10">
         <div className="mb-10">
-          <p className="mb-3 text-xs font-bold tracking-[0.2em] text-brand-green">POST TO LET</p>
-          <h1 className="text-3xl font-extrabold tracking-tight text-text-primary sm:text-4xl">List your property</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-text-secondary">Add the property details below. Your listing will be reviewed before it becomes publicly available.</p>
+          <p className="mb-3 text-xs font-bold tracking-[0.2em] text-brand-green">NEW LISTING</p>
+
+          <h1 className="text-3xl font-extrabold tracking-tight text-text-primary sm:text-4xl">Add your property</h1>
+
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-text-secondary">Provide the details tenants need to understand your property, location, facilities and costs.</p>
         </div>
 
-        <form onSubmit={handleReview} className="rounded-xl border border-border bg-background px-6 sm:px-8">
-          <Section title="Property">
-            <div className="grid gap-6">
-              <Field label="Property type">
-                <div className="grid gap-3 sm:grid-cols-4">
-                  {propertyTypes.map((type) => (
-                    <ChoiceButton key={type} label={type} selected={form.propertyType === type} onClick={() => handlePropertyTypeChange(type)} />
-                  ))}
-                </div>
-              </Field>
+        <form onSubmit={handleReview}>
+          <div className="rounded-xl border border-border bg-background px-6 sm:px-8">
+            <Section title="Property">
+              <div className="grid gap-6">
+                <Field label="Posting as">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <ChoiceButton label="I am the owner" selected={postRole === "owner"} onClick={() => setPostRole("owner")} />
 
-              {form.propertyType === "Apartment" && (
-                <>
-                  <Field label="Suitable for">
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      {["Family", "Bachelor", "Both"].map((option) => (
-                        <ChoiceButton key={option} label={option} selected={form.suitableFor === option} onClick={() => updateField("suitableFor", option)} />
-                      ))}
-                    </div>
-                  </Field>
-
-                  <div className="grid gap-6 sm:grid-cols-3">
-                    <Field label="Bedrooms">
-                      <input required type="number" min="0" value={form.bedrooms} onChange={(event) => updateField("bedrooms", event.target.value)} placeholder="e.g. 3" className={inputClass} />
-                    </Field>
-
-                    <Field label="Bathrooms">
-                      <input required type="number" min="0" value={form.bathrooms} onChange={(event) => updateField("bathrooms", event.target.value)} placeholder="e.g. 2" className={inputClass} />
-                    </Field>
-
-                    <Field label="Balconies">
-                      <input required type="number" min="0" value={form.balconies} onChange={(event) => updateField("balconies", event.target.value)} placeholder="e.g. 2" className={inputClass} />
-                    </Field>
+                    <ChoiceButton label="Community post" selected={postRole === "community"} onClick={() => setPostRole("community")} />
                   </div>
 
-                  <Field label="Size">
-                    <div className="relative">
-                      <input required type="number" min="0" value={form.size} onChange={(event) => updateField("size", event.target.value)} placeholder="e.g. 1200" className={`${inputClass} pr-20`} />
-                      <span className="absolute right-4 top-[26px] text-sm font-bold text-text-secondary">sq ft</span>
-                    </div>
-                  </Field>
-                </>
-              )}
+                  <p className="mt-3 text-xs leading-5 text-text-secondary">{postRole === "owner" ? "You are posting a property that belongs to you." : "You are posting a property for the community. It will not be linked to your owner profile."}</p>
+                </Field>
 
-              {form.propertyType === "Room" && (
-                <>
-                  <Field label="For">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {["Male", "Female"].map((option) => (
-                        <ChoiceButton key={option} label={option} selected={form.gender === option} onClick={() => updateField("gender", option)} />
+                <Field label="Property type">
+                  <div className="relative">
+                    <select value={form.propertyType} onChange={(event) => handlePropertyTypeChange(event.target.value as PropertyType)} className={`${inputClass} appearance-none pr-10`}>
+                      {propertyTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
                       ))}
-                    </div>
-                  </Field>
+                    </select>
 
-                  <div className="grid gap-6 sm:grid-cols-2">
-                    <Field label="Room capacity">
-                      <input required type="number" min="1" value={form.roomCapacity} onChange={(event) => updateField("roomCapacity", event.target.value)} placeholder="e.g. 2" className={inputClass} />
-                    </Field>
+                    <ChevronDown className="pointer-events-none absolute right-4 top-6 h-4 w-4 text-text-muted" />
+                  </div>
+                </Field>
 
-                    <Field label="Room size" optional>
-                      <div className="relative">
-                        <input type="number" min="0" value={form.size} onChange={(event) => updateField("size", event.target.value)} placeholder="e.g. 180" className={`${inputClass} pr-20`} />
-                        <span className="absolute right-4 top-[26px] text-sm font-bold text-text-secondary">sq ft</span>
+                {form.propertyType === "Apartment" && (
+                  <>
+                    <Field label="Suitable for">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        {["Family", "Bachelor", "Both"].map((option) => (
+                          <ChoiceButton key={option} label={option} selected={form.suitableFor === option} onClick={() => updateField("suitableFor", option)} />
+                        ))}
                       </div>
                     </Field>
-                  </div>
 
-                  <Field label="Bathroom">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {["Inside the room", "Shared"].map((option) => (
-                        <ChoiceButton key={option} label={option} selected={form.bathroomLocation === option} onClick={() => updateField("bathroomLocation", option)} />
-                      ))}
+                    <div className="grid gap-6 sm:grid-cols-3">
+                      <Field label="Bedrooms">
+                        <input required type="number" min="0" value={form.bedrooms} onChange={(event) => updateField("bedrooms", event.target.value)} placeholder="e.g. 3" className={inputClass} />
+                      </Field>
+
+                      <Field label="Bathrooms">
+                        <input required type="number" min="0" value={form.bathrooms} onChange={(event) => updateField("bathrooms", event.target.value)} placeholder="e.g. 3" className={inputClass} />
+                      </Field>
+
+                      <Field label="Number of balconies">
+                        <input required type="number" min="0" value={form.balconies} onChange={(event) => updateField("balconies", event.target.value)} placeholder="e.g. 2" className={inputClass} />
+                      </Field>
                     </div>
-                  </Field>
 
-                  <Field label="Balcony">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <ChoiceButton label="Not available" selected={!form.balconyAvailable} onClick={() => updateField("balconyAvailable", false)} />
-                      <ChoiceButton label="Available" selected={form.balconyAvailable} onClick={() => updateField("balconyAvailable", true)} />
+                    <Field label="Size">
+                      <div className="relative">
+                        <input required type="number" min="0" value={form.size} onChange={(event) => updateField("size", event.target.value)} placeholder="e.g. 1500" className={`${inputClass} pr-16`} />
+
+                        <span className="absolute right-4 top-[26px] text-xs font-bold text-text-muted">sq ft</span>
+                      </div>
+                    </Field>
+                  </>
+                )}
+
+                {form.propertyType === "Room" && (
+                  <>
+                    <Field label="For">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <ChoiceButton label="Male" selected={form.gender === "Male"} onClick={() => updateField("gender", "Male")} />
+
+                        <ChoiceButton label="Female" selected={form.gender === "Female"} onClick={() => updateField("gender", "Female")} />
+                      </div>
+                    </Field>
+
+                    <div className="grid gap-6 sm:grid-cols-2">
+                      <Field label="Room capacity">
+                        <input required type="number" min="1" value={form.roomCapacity} onChange={(event) => updateField("roomCapacity", event.target.value)} placeholder="e.g. 2" className={inputClass} />
+                      </Field>
+
+                      <Field label="Room size" optional>
+                        <div className="relative">
+                          <input type="number" min="0" value={form.size} onChange={(event) => updateField("size", event.target.value)} placeholder="e.g. 180" className={`${inputClass} pr-16`} />
+
+                          <span className="absolute right-4 top-[26px] text-xs font-bold text-text-muted">sq ft</span>
+                        </div>
+                      </Field>
                     </div>
-                  </Field>
-                </>
-              )}
 
-              {form.propertyType === "Seat" && (
-                <>
-                  <Field label="For">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {["Male", "Female"].map((option) => (
-                        <ChoiceButton key={option} label={option} selected={form.gender === option} onClick={() => updateField("gender", option)} />
-                      ))}
+                    <Field label="Bathroom">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <ChoiceButton label="Inside the room" selected={form.bathroomLocation === "Inside the room"} onClick={() => updateField("bathroomLocation", "Inside the room")} />
+
+                        <ChoiceButton label="Outside the room" selected={form.bathroomLocation === "Outside the room"} onClick={() => updateField("bathroomLocation", "Outside the room")} />
+                      </div>
+                    </Field>
+
+                    <Field label="Balcony">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <ChoiceButton label="Yes" selected={form.balconyAvailable} onClick={() => updateField("balconyAvailable", true)} />
+
+                        <ChoiceButton label="No" selected={!form.balconyAvailable} onClick={() => updateField("balconyAvailable", false)} />
+                      </div>
+                    </Field>
+                  </>
+                )}
+
+                {form.propertyType === "Seat" && (
+                  <>
+                    <Field label="For">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <ChoiceButton label="Male" selected={form.gender === "Male"} onClick={() => updateField("gender", "Male")} />
+
+                        <ChoiceButton label="Female" selected={form.gender === "Female"} onClick={() => updateField("gender", "Female")} />
+                      </div>
+                    </Field>
+
+                    <div className="grid gap-6 sm:grid-cols-2">
+                      <Field label="Total people in the room">
+                        <input required type="number" min="1" value={form.roomCapacity} onChange={(event) => updateField("roomCapacity", event.target.value)} placeholder="e.g. 3" className={inputClass} />
+                      </Field>
+
+                      <Field label="Available seats">
+                        <input required type="number" min="1" value={form.availableSeats} onChange={(event) => updateField("availableSeats", event.target.value)} placeholder="e.g. 1" className={inputClass} />
+                      </Field>
                     </div>
-                  </Field>
 
+                    <Field label="Bathroom">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <ChoiceButton label="Inside the room" selected={form.bathroomLocation === "Inside the room"} onClick={() => updateField("bathroomLocation", "Inside the room")} />
+
+                        <ChoiceButton label="Outside the room" selected={form.bathroomLocation === "Outside the room"} onClick={() => updateField("bathroomLocation", "Outside the room")} />
+                      </div>
+                    </Field>
+
+                    <Field label="Balcony">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <ChoiceButton label="Yes" selected={form.balconyAvailable} onClick={() => updateField("balconyAvailable", true)} />
+
+                        <ChoiceButton label="No" selected={!form.balconyAvailable} onClick={() => updateField("balconyAvailable", false)} />
+                      </div>
+                    </Field>
+                  </>
+                )}
+
+                {form.propertyType === "Garage" && (
+                  <>
+                    <Field label="Vehicle type">
+                      <div className="grid gap-3 sm:grid-cols-4">
+                        {["Car", "Bike", "Car & Bike", "Car or Bike"].map((option) => (
+                          <ChoiceButton key={option} label={option} selected={form.vehicleType === option} onClick={() => updateField("vehicleType", option)} />
+                        ))}
+                      </div>
+                    </Field>
+
+                    <Field label="Garage type">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <ChoiceButton label="Covered" selected={form.garageType === "Covered"} onClick={() => updateField("garageType", "Covered")} />
+
+                        <ChoiceButton label="Open" selected={form.garageType === "Open"} onClick={() => updateField("garageType", "Open")} />
+                      </div>
+                    </Field>
+
+                    <Field label="Size" optional>
+                      <div className="relative">
+                        <input type="number" min="0" value={form.size} onChange={(event) => updateField("size", event.target.value)} placeholder="e.g. 150" className={`${inputClass} pr-16`} />
+
+                        <span className="absolute right-4 top-[26px] text-xs font-bold text-text-muted">sq ft</span>
+                      </div>
+                    </Field>
+                  </>
+                )}
+
+                <Field label="Available from" optional>
+                  <input type="date" value={form.availableFrom} onChange={(event) => updateField("availableFrom", event.target.value)} className={inputClass} />
+                </Field>
+              </div>
+            </Section>
+
+            <Section title="Location">
+              <div className="grid gap-6">
+                {form.propertyType !== "Garage" && (
                   <div className="grid gap-6 sm:grid-cols-2">
-                    <Field label="Total people in room">
-                      <input required type="number" min="1" value={form.roomCapacity} onChange={(event) => updateField("roomCapacity", event.target.value)} placeholder="e.g. 4" className={inputClass} />
+                    <Field label="Flat number" optional>
+                      <input value={form.flatNumber} onChange={(event) => updateField("flatNumber", event.target.value)} placeholder="e.g. A2" className={inputClass} />
                     </Field>
 
-                    <Field label="Available seats">
-                      <input required type="number" min="1" value={form.availableSeats} onChange={(event) => updateField("availableSeats", event.target.value)} placeholder="e.g. 1" className={inputClass} />
+                    <Field label="Floor" optional>
+                      <input value={form.floor} onChange={(event) => updateField("floor", event.target.value)} placeholder="e.g. 2nd" className={inputClass} />
                     </Field>
                   </div>
+                )}
 
-                  <Field label="Bathroom">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {["Inside the room", "Shared"].map((option) => (
-                        <ChoiceButton key={option} label={option} selected={form.bathroomLocation === option} onClick={() => updateField("bathroomLocation", option)} />
-                      ))}
-                    </div>
-                  </Field>
-
-                  <Field label="Balcony">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <ChoiceButton label="Not available" selected={!form.balconyAvailable} onClick={() => updateField("balconyAvailable", false)} />
-                      <ChoiceButton label="Available" selected={form.balconyAvailable} onClick={() => updateField("balconyAvailable", true)} />
-                    </div>
-                  </Field>
-                </>
-              )}
-
-              {form.propertyType === "Garage" && (
-                <>
-                  <Field label="Vehicle type">
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      {["Car", "Bike", "Car + Bike"].map((option) => (
-                        <ChoiceButton key={option} label={option} selected={form.vehicleType === option} onClick={() => updateField("vehicleType", option)} />
-                      ))}
-                    </div>
-                  </Field>
-
-                  <Field label="Garage type">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {["Covered", "Open"].map((option) => (
-                        <ChoiceButton key={option} label={option} selected={form.garageType === option} onClick={() => updateField("garageType", option)} />
-                      ))}
-                    </div>
-                  </Field>
-
-                  <Field label="Size" optional>
-                    <div className="relative">
-                      <input type="number" min="0" value={form.size} onChange={(event) => updateField("size", event.target.value)} placeholder="e.g. 250" className={`${inputClass} pr-20`} />
-                      <span className="absolute right-4 top-[26px] text-sm font-bold text-text-secondary">sq ft</span>
-                    </div>
-                  </Field>
-                </>
-              )}
-
-              <Field label="Available from" optional>
-                <input type="date" value={form.availableFrom} onChange={(event) => updateField("availableFrom", event.target.value)} className={inputClass} />
-              </Field>
-            </div>
-          </Section>
-
-          <Section title="Location">
-            <div className="grid gap-6">
-              {form.propertyType !== "Garage" && (
                 <div className="grid gap-6 sm:grid-cols-2">
-                  <Field label="Flat number">
-                    <input required value={form.flatNumber} onChange={(event) => updateField("flatNumber", event.target.value)} placeholder="e.g. 4A" className={inputClass} />
+                  <Field label="House" optional={form.propertyType === "Garage"}>
+                    <input required={form.propertyType !== "Garage"} value={form.house} onChange={(event) => updateField("house", event.target.value)} placeholder="e.g. 151" className={inputClass} />
                   </Field>
 
-                  <Field label="Floor">
-                    <input required type="text" value={form.floor} onChange={(event) => updateField("floor", event.target.value)} placeholder="e.g. 4th" className={inputClass} />
+                  <Field label="Road">
+                    <input required value={form.road} onChange={(event) => updateField("road", event.target.value)} placeholder="e.g. 8" className={inputClass} />
                   </Field>
                 </div>
-              )}
 
-              <div className="grid gap-6 sm:grid-cols-2">
-                <Field label="House" optional>
-                  <input value={form.house} onChange={(event) => updateField("house", event.target.value)} placeholder="e.g. 12" className={inputClass} />
-                </Field>
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <Field label="Block">
+                    <input required value={form.block} onChange={(event) => updateField("block", event.target.value)} placeholder="e.g. F" className={inputClass} />
+                  </Field>
 
-                <Field label="Road">
-                  <input required value={form.road} onChange={(event) => updateField("road", event.target.value)} placeholder="e.g. Road 5" className={inputClass} />
-                </Field>
+                  <Field label="Area">
+                    <input required value={form.area} onChange={(event) => updateField("area", event.target.value)} placeholder="e.g. Bashundhara R/A" className={inputClass} />
+                  </Field>
+                </div>
               </div>
+            </Section>
 
-              <div className="grid gap-6 sm:grid-cols-2">
-                <Field label="Block">
-                  <input required value={form.block} onChange={(event) => updateField("block", event.target.value)} placeholder="e.g. Block B" className={inputClass} />
-                </Field>
-
-                <Field label="Area">
-                  <input required value={form.area} onChange={(event) => updateField("area", event.target.value)} placeholder="e.g. Bashundhara R/A" className={inputClass} />
-                </Field>
-              </div>
-            </div>
-          </Section>
-
-          <Section title={form.propertyType === "Garage" ? "Security & Access" : "Facilities & Security"}>
-            {form.propertyType !== "Garage" && (
-              <>
+            <Section title={form.propertyType === "Garage" ? "Security & Access" : "Facilities & Security"}>
+              {form.propertyType !== "Garage" && (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Toggle label="Lift" checked={form.lift} onChange={(value) => updateField("lift", value)} />
+
                   <Toggle label="Generator / power backup" checked={form.generator} onChange={(value) => updateField("generator", value)} />
                 </div>
-              </>
-            )}
+              )}
 
-            <div className={`grid gap-3 sm:grid-cols-2 ${form.propertyType !== "Garage" ? "mt-6" : ""}`}>
-              <Toggle label="Security guard" checked={form.security} onChange={(value) => updateField("security", value)} />
-              <Toggle label="CCTV" checked={form.cctv} onChange={(value) => updateField("cctv", value)} />
-            </div>
+              <div className={form.propertyType !== "Garage" ? "mt-3 grid gap-3 sm:grid-cols-2" : "grid gap-3 sm:grid-cols-2"}>
+                <Toggle label="Security guard" checked={form.security} onChange={(value) => updateField("security", value)} />
 
-            {form.cctv && (
+                <Toggle label="CCTV" checked={form.cctv} onChange={(value) => updateField("cctv", value)} />
+              </div>
+
+              {form.cctv && (
+                <div className="mt-6">
+                  <Field label="CCTV coverage">
+                    <textarea value={form.cctvCoverage} onChange={(event) => updateField("cctvCoverage", event.target.value)} placeholder="e.g. Main gate, entrance, lift lobby and parking area" className={textareaClass} />
+                  </Field>
+                </div>
+              )}
+
               <div className="mt-6">
-                <Field label="CCTV coverage" optional>
-                  <input value={form.cctvCoverage} onChange={(event) => updateField("cctvCoverage", event.target.value)} placeholder="e.g. Entrance, parking and common areas" className={inputClass} />
+                <Field label="Gate access">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <ChoiceButton label="Open 24/7" selected={form.gateAccess === "24/7"} onClick={() => updateField("gateAccess", "24/7")} />
+
+                    <ChoiceButton label="Fixed hours" selected={form.gateAccess === "fixed"} onClick={() => updateField("gateAccess", "fixed")} />
+                  </div>
                 </Field>
               </div>
-            )}
-
-            <div className="mt-6">
-              <Field label="Gate access">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ChoiceButton label="24/7" selected={form.gateAccess === "24/7"} onClick={() => updateField("gateAccess", "24/7")} />
-                  <ChoiceButton label="Fixed hours" selected={form.gateAccess === "fixed"} onClick={() => updateField("gateAccess", "fixed")} />
-                </div>
-              </Field>
 
               {form.gateAccess === "fixed" && (
-                <div className="mt-5 grid gap-6 sm:grid-cols-2">
-                  <Field label="Open from">
+                <div className="mt-6 grid gap-6 sm:grid-cols-2">
+                  <Field label="Gate opens">
                     <input required type="time" value={form.gateOpenFrom} onChange={(event) => updateField("gateOpenFrom", event.target.value)} className={inputClass} />
                   </Field>
 
-                  <Field label="Open to">
+                  <Field label="Gate closes">
                     <input required type="time" value={form.gateOpenTo} onChange={(event) => updateField("gateOpenTo", event.target.value)} className={inputClass} />
                   </Field>
                 </div>
               )}
-            </div>
-          </Section>
+            </Section>
 
-          {form.propertyType !== "Garage" && renderParkingSection(form)}
+            {form.propertyType !== "Garage" && renderParkingSection(form)}
 
-          <Section title="Rent & Costs">
-            <div className="grid gap-6">
-              <div className="grid gap-6 sm:grid-cols-2">
+            <Section title="Rent & Costs">
+              <div className="grid gap-6">
                 <Field label="Monthly rent">
                   <div className="relative">
                     <span className="absolute left-4 top-[26px] text-sm font-bold text-text-secondary">৳</span>
-                    <input required type="number" min="0" value={form.rent} onChange={(event) => updateField("rent", event.target.value)} placeholder="e.g. 25000" className={`${inputClass} pl-9`} />
+
+                    <input required type="number" min="0" value={form.rent} onChange={(event) => updateField("rent", event.target.value)} placeholder="e.g. 35000" className={`${inputClass} pl-9`} />
                   </div>
                 </Field>
 
                 <Field label="Service charge" optional>
                   <div className="relative">
                     <span className="absolute left-4 top-[26px] text-sm font-bold text-text-secondary">৳</span>
-                    <input type="number" min="0" value={form.serviceCharge} onChange={(event) => updateField("serviceCharge", event.target.value)} placeholder="e.g. 3000" className={`${inputClass} pl-9`} />
+
+                    <input type="number" min="0" value={form.serviceCharge} onChange={(event) => updateField("serviceCharge", event.target.value)} placeholder="e.g. 5000" className={`${inputClass} pl-9`} />
                   </div>
                 </Field>
-              </div>
 
-              {form.propertyType === "Garage" && (
-                <Field label="Security deposit" optional>
-                  <div className="relative">
-                    <span className="absolute left-4 top-[26px] text-sm font-bold text-text-secondary">৳</span>
-                    <input type="number" min="0" value={form.securityDeposit} onChange={(event) => updateField("securityDeposit", event.target.value)} placeholder="e.g. 10000" className={`${inputClass} pl-9`} />
-                  </div>
-                </Field>
-              )}
+                {form.propertyType === "Garage" && (
+                  <Field label="Security deposit" optional>
+                    <div className="relative">
+                      <span className="absolute left-4 top-[26px] text-sm font-bold text-text-secondary">৳</span>
 
-              {form.propertyType !== "Garage" && (
+                      <input type="number" min="0" value={form.securityDeposit} onChange={(event) => updateField("securityDeposit", event.target.value)} placeholder="e.g. 10000" className={`${inputClass} pl-9`} />
+                    </div>
+                  </Field>
+                )}
+
                 <Field label="Utility details" optional>
-                  <textarea value={form.utilityDetails} onChange={(event) => updateField("utilityDetails", event.target.value)} placeholder="e.g. Electricity and gas billed separately" className={textareaClass} />
+                  <textarea value={form.utilityDetails} onChange={(event) => updateField("utilityDetails", event.target.value)} placeholder="e.g. Gas included, electricity separate, water included" className={textareaClass} />
                 </Field>
-              )}
 
-              <Field label="Other charges" optional>
-                <textarea value={form.otherCharges} onChange={(event) => updateField("otherCharges", event.target.value)} placeholder="Mention any additional charges" className={textareaClass} />
+                <Field label="Other charges" optional>
+                  <textarea value={form.otherCharges} onChange={(event) => updateField("otherCharges", event.target.value)} placeholder="Mention any other applicable charges." className={textareaClass} />
+                </Field>
+              </div>
+            </Section>
+
+            <Section title="Contact">
+              <Field label="Contact number">
+                <input required type="tel" inputMode="tel" autoComplete="tel" value={form.contactNumber} onChange={(event) => updateField("contactNumber", event.target.value)} placeholder="e.g. 01712345678" className={inputClass} />
+
+                <p className="mt-2 text-xs font-medium text-text-muted">This number will be used by tenants to contact you about this listing.</p>
               </Field>
-            </div>
-          </Section>
+            </Section>
 
-          <Section title="Contact">
-            <Field label="Contact number">
-              <input required type="tel" value={form.contactNumber} onChange={(event) => updateField("contactNumber", event.target.value)} placeholder="e.g. 01712345678" className={inputClass} />
-            </Field>
-          </Section>
-
-          <Section title="Photos & Videos">
-            <div className="grid gap-6">
+            <Section title="Photos & Videos">
               <div>
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-sm font-bold text-text-primary">Photos</span>
-                  <span className="text-xs font-medium text-text-muted">Optional · Up to {MAX_PHOTOS}</span>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-sm leading-6 text-text-secondary">Add clear photos or videos of the property.</p>
+
+                    <p className="mt-1 text-xs font-medium text-text-muted">Photos: JPG, PNG, WebP · max 10 MB each · up to {MAX_PHOTOS}</p>
+
+                    <p className="text-xs font-medium text-text-muted">Videos: MP4, WebM, MOV · max 100 MB each · up to {MAX_VIDEOS}</p>
+                  </div>
+
+                  <div className="text-right text-xs font-bold text-text-secondary">
+                    <div>
+                      {photos.length}/{MAX_PHOTOS} photos
+                    </div>
+
+                    <div>
+                      {videos.length}/{MAX_VIDEOS} videos
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {form.media
-                    .filter((media) => media.type === "photo")
-                    .map((photo, index) => (
-                      <div key={photo.id} className="group relative overflow-hidden rounded-lg border border-border bg-surface">
-                        <img src={photo.url} alt={`Listing photo ${index + 1}`} className="h-40 w-full object-cover" />
-                        <button type="button" onClick={() => removeMedia(photo)} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-black">
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
+                {/*
+                 * IMPORTANT:
+                 *
+                 * This is intentionally grid-cols-2
+                 * WITHOUT sm/md/lg prefixes.
+                 *
+                 * Therefore Photos and Videos
+                 * always occupy separate columns
+                 * on laptop/desktop.
+                 */}
+                <div className="mt-5 grid w-full grid-cols-2 gap-8">
+                  {/* PHOTOS COLUMN */}
+                  <div className="min-w-0">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <span className="text-sm font-bold text-text-primary">Photos</span>
 
-                  {form.media.filter((media) => media.type === "photo").length < MAX_PHOTOS && (
-                    <label className="flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-background text-center transition hover:border-hover-border hover:bg-hover-background">
-                      <ImagePlus className="h-6 w-6 text-text-secondary" />
-                      <span className="mt-3 text-sm font-bold text-text-primary">Add photos</span>
-                      <span className="mt-1 text-xs text-text-muted">JPG, PNG or WebP · Max 10 MB</span>
-                      <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => handleMediaUpload(event, "photo")} className="hidden" />
-                    </label>
-                  )}
+                      <span className="text-xs font-medium text-text-muted">Optional · Up to {MAX_PHOTOS}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {photos.map((photo, index) => (
+                        <div key={photo.id} className="group relative overflow-hidden rounded-lg border border-border bg-surface">
+                          <img src={photo.url} alt={`Listing photo ${index + 1}`} className="h-40 w-full object-cover" />
+
+                          {index === 0 && <span className="absolute left-2 top-2 rounded-md bg-background/90 px-2 py-1 text-xs font-bold text-text-primary backdrop-blur">Cover photo</span>}
+
+                          <button type="button" onClick={() => removeMedia(photo)} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-md bg-background/90 text-brand-red opacity-0 backdrop-blur transition group-hover:opacity-100 hover:bg-background" aria-label={`Remove ${photo.name}`}>
+                            <X className="h-4 w-4" strokeWidth={2} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {photos.length < MAX_PHOTOS && (
+                      <label className="mt-3 flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border-strong bg-background px-3 text-center transition hover:border-hover-border hover:bg-hover-background">
+                        <ImagePlus className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />
+
+                        <span className="mt-3 text-sm font-bold text-text-primary">Add photos</span>
+
+                        <span className="mt-1 text-xs text-text-muted">JPG, PNG or WebP · Max 10 MB</span>
+
+                        <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploadingMedia} onChange={(event) => handleMediaUpload(event, "photo")} className="sr-only" />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* VIDEOS COLUMN */}
+                  <div className="min-w-0">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <span className="text-sm font-bold text-text-primary">Videos</span>
+
+                      <span className="text-xs font-medium text-text-muted">Optional · Up to {MAX_VIDEOS}</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3">
+                      {videos.map((video) => (
+                        <div key={video.id} className="group relative overflow-hidden rounded-lg border border-border bg-black">
+                          <video src={video.url} controls preload="metadata" className="h-40 w-full object-cover" />
+
+                          <span className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-background/90 px-2 py-1 text-xs font-bold text-text-primary backdrop-blur">
+                            <Video className="h-3 w-3" strokeWidth={2} />
+                            Video
+                          </span>
+
+                          <button type="button" onClick={() => removeMedia(video)} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-md bg-background/90 text-brand-red opacity-0 backdrop-blur transition group-hover:opacity-100 hover:bg-background" aria-label={`Remove ${video.name}`}>
+                            <X className="h-4 w-4" strokeWidth={2} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {videos.length < MAX_VIDEOS && (
+                      <label className="mt-3 flex min-h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong bg-background px-3 text-center transition hover:border-hover-border hover:bg-hover-background">
+                        <div className="flex items-center gap-2">
+                          <Video className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />
+
+                          <Play className="h-4 w-4 text-text-secondary" strokeWidth={1.8} />
+                        </div>
+
+                        <span className="text-sm font-bold text-text-primary">Add videos</span>
+
+                        <span className="text-xs text-text-muted">MP4, WebM or MOV · Max 100 MB</span>
+
+                        <input type="file" accept="video/mp4,video/webm,video/quicktime" multiple disabled={uploadingMedia} onChange={(event) => handleMediaUpload(event, "video")} className="sr-only" />
+                      </label>
+                    )}
+                  </div>
                 </div>
+
+                {uploadingMedia && (
+                  <div className="mt-4 flex items-center gap-2 text-sm font-bold text-brand-green">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-brand-green" />
+                    Uploading media...
+                  </div>
+                )}
               </div>
+            </Section>
 
-              <div>
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-sm font-bold text-text-primary">Videos</span>
-                  <span className="text-xs font-medium text-text-muted">Optional · Up to {MAX_VIDEOS}</span>
-                </div>
+            <Section title="Description">
+              <Field label="Description" optional>
+                <textarea value={form.description} onChange={(event) => updateField("description", event.target.value)} placeholder="Add anything else tenants should know about the property." className={textareaClass} />
+              </Field>
+            </Section>
+          </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {form.media
-                    .filter((media) => media.type === "video")
-                    .map((video) => (
-                      <div key={video.id} className="relative overflow-hidden rounded-lg border border-border bg-black">
-                        <video src={video.url} controls preload="metadata" className="h-48 w-full object-cover" />
-                        <button type="button" onClick={() => removeMedia(video)} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-black">
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-
-                  {form.media.filter((media) => media.type === "video").length < MAX_VIDEOS && (
-                    <label className="flex min-h-48 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-background text-center transition hover:border-hover-border hover:bg-hover-background">
-                      <Video className="h-6 w-6 text-text-secondary" />
-                      <span className="mt-3 text-sm font-bold text-text-primary">Add videos</span>
-                      <span className="mt-1 text-xs text-text-muted">MP4, WebM or MOV · Max 100 MB</span>
-                      <input type="file" accept="video/mp4,video/webm,video/quicktime" multiple onChange={(event) => handleMediaUpload(event, "video")} className="hidden" />
-                    </label>
-                  )}
-                </div>
-              </div>
-
-              {uploadingMedia && <p className="text-sm font-semibold text-text-secondary">Uploading media...</p>}
-            </div>
-          </Section>
-
-          <Section title="Description">
-            <Field label="Description" optional>
-              <textarea value={form.description} onChange={(event) => updateField("description", event.target.value)} placeholder="Add any additional information about the property..." className={textareaClass} />
-            </Field>
-          </Section>
-
-          <div className="flex flex-col gap-4 border-t border-border py-8 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand-green" />
-              <p className="max-w-xl text-xs leading-5 text-text-secondary">Your listing will be reviewed before publication. Please make sure all information is accurate.</p>
-            </div>
-
-            <button type="submit" disabled={uploadingMedia} className="flex h-12 items-center justify-center gap-2 rounded-lg bg-brand-green px-6 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
-              Review listing
-              <ChevronDown className="h-4 w-4 -rotate-90" />
+          <div className="mt-8 flex justify-end">
+            <button type="submit" disabled={uploadingMedia} className="inline-flex h-12 items-center gap-2 rounded-lg bg-brand-green px-7 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+              Review & Preview
+              <ShieldCheck className="h-4 w-4" strokeWidth={2} />
             </button>
           </div>
         </form>
