@@ -85,6 +85,7 @@ export default function SignInForm({ redirectTo }: SignInFormProps) {
             <div className="rounded-2xl border border-border bg-background p-6 shadow-sm sm:p-8">
               <button type="button" onClick={handleGoogleSignIn} disabled={googleLoading || loading} className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-border bg-background text-sm font-bold text-text-primary transition-colors hover:border-hover-border hover:bg-hover-background hover:text-hover-text disabled:cursor-not-allowed disabled:opacity-60">
                 <GoogleLogo />
+
                 {googleLoading ? "Connecting..." : "Continue with Google"}
               </button>
 
