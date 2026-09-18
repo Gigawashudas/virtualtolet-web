@@ -7,28 +7,20 @@ type VirtualToletLogoProps = {
 
 export default function VirtualToletLogo({ href = "/", className = "" }: VirtualToletLogoProps) {
   return (
-    <Link href={href} aria-label="Virtual To-let" className={`group inline-flex items-center ${className}`}>
-      <svg viewBox="0 0 250 52" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-auto w-[190px] sm:w-[205px]" role="img" aria-labelledby="virtualtolet-logo-title">
-        <title id="virtualtolet-logo-title">Virtual To-let</title>
+    <Link href={href} aria-label="Virtual To-let" className={`inline-flex items-center gap-3 ${className}`}>
+      {/* Logo mark */}
+      <svg width="46" height="46" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0" aria-hidden="true">
+        <circle cx="26" cy="26" r="22" stroke="#006A4E" strokeWidth="4" />
 
-        {/* V */}
-        <path d="M4 6L19 40L34 6" stroke="#006A4E" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M11 31C15 41 26 45 36 39C44 34 47 24 42 15" stroke="#F42A41" strokeWidth="4" strokeLinecap="round" />
 
-        {/* T — same height as V */}
-        <path d="M9 6H29" stroke="#F42A41" strokeWidth="6" strokeLinecap="round" />
+        <circle cx="26" cy="26" r="6" fill="#006A4E" />
 
-        <path d="M19 6V40" stroke="#F42A41" strokeWidth="6" strokeLinecap="round" />
-
-        {/* Wordmark */}
-        <text x="47" y="35" fill="#006A4E" fontFamily="Manrope, sans-serif" fontSize="30" fontWeight="800" letterSpacing="-1.5">
-          Virtual
-        </text>
-
-        <text x="140" y="35" fill="#F42A41" fontFamily="Manrope, sans-serif" fontSize="30" fontWeight="800" letterSpacing="-1.5">
-          {" "}
-          To-let{" "}
-        </text>
+        <circle cx="26" cy="26" r="2.5" fill="#F42A41" />
       </svg>
+
+      {/* Wordmark */}
+      <span className="flex items-center whitespace-nowrap font-[Manrope,sans-serif] text-[30px] font-extrabold leading-none tracking-[-1.5px] text-black">Virtual To-let</span>
     </Link>
   );
 }
