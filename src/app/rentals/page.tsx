@@ -1,7 +1,5 @@
 import Link from "next/link";
 
-import { redirect } from "next/navigation";
-
 import { ArrowRight, Bath, BedDouble, CalendarDays, Car, Check, Home, MapPin, Ruler, Users } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -384,14 +382,6 @@ export default async function RentalsPage({ searchParams }: { searchParams: Prom
   const params = await searchParams;
 
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/sign-in");
-  }
 
   const { data: listings, error } = await supabase
     .from("listings")
