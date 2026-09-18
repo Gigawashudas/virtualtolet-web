@@ -1,11 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 export function proxy(request: NextRequest) {
-  console.log("🔥🔥🔥 PROXY EXECUTED:", request.nextUrl.pathname);
+  const pathname = request.nextUrl.pathname;
 
-  return NextResponse.redirect(new URL("/sign-in", request.url));
+  const isPublicRoute = pathname === "/" || pathname === "/rentals" || pathname.startsWith("/rentals/") || pathname === "/sign-in" || pathname === "/sign-up" || pathname === "/forgot-password" || pathname === "/reset-password" || pathname === "/auth/callback";
+
+  // Public pages do not require authentication.
+  if (isPublicRoute) {
+    return NextResponse.next();
+  }
+
+  // Protected pages will be handled here later.
+  // For now, allow the request through so we can isolate
+  // whether the redirect problem comes from the proxy.
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: "/:path*",
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map)$).*)"],
 };
