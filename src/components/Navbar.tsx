@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Bell, Bookmark, Menu, Moon, Search, ShieldCheck, Sun, X } from "lucide-react";
+import { Bell, Menu, Moon, Search, ShieldCheck, Sun, X } from "lucide-react";
 
 import VirtualToletLogo from "@/components/VirtualToletLogo";
 import { createClient } from "@/lib/supabase/client";
@@ -17,16 +17,6 @@ const navLinks = [
     label: "Post a TO-LET",
     href: "/post-to-let",
     icon: null,
-  },
-  {
-    label: "Services",
-    href: "/services",
-    icon: null,
-  },
-  {
-    label: "Saved",
-    href: "/saved",
-    icon: Bookmark,
   },
 ];
 
@@ -44,12 +34,14 @@ function ThemeToggle() {
     const nextIsDark = !isDark;
 
     document.documentElement.classList.toggle("dark", nextIsDark);
+
     window.localStorage.setItem("virtualtolet-theme", nextIsDark ? "dark" : "light");
   }
 
   return (
     <button type="button" aria-label="Toggle theme" title="Toggle theme" onClick={toggleTheme} className="group flex h-10 w-10 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
       <Moon className="h-5 w-5 dark:hidden" strokeWidth={1.8} />
+
       <Sun className="hidden h-5 w-5 dark:block" strokeWidth={1.8} />
     </button>
   );
@@ -138,6 +130,7 @@ export default function Navbar({ adminMode = false }: NavbarProps) {
           {navLinks.map(({ label, href, icon: Icon }) => (
             <Link key={label} href={label === "Post a TO-LET" ? postToLetHref : href} className="group flex items-center gap-1.5 rounded-md px-2 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
               {Icon && <Icon className="h-4 w-4 text-text-muted transition-colors group-hover:text-hover-text" strokeWidth={1.8} />}
+
               {label}
             </Link>
           ))}
@@ -149,6 +142,7 @@ export default function Navbar({ adminMode = false }: NavbarProps) {
 
           <button type="button" aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
             <Bell className="h-5 w-5" strokeWidth={1.8} />
+
             <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-brand-red" />
           </button>
 
@@ -175,6 +169,7 @@ export default function Navbar({ adminMode = false }: NavbarProps) {
 
           <button type="button" aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
             <Bell className="h-5 w-5" strokeWidth={1.8} />
+
             <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-brand-red" />
           </button>
 
@@ -199,6 +194,7 @@ export default function Navbar({ adminMode = false }: NavbarProps) {
               {navLinks.map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={label === "Post a TO-LET" ? postToLetHref : href} onClick={closeMenu} className="group flex min-h-12 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
                   {Icon && <Icon className="h-5 w-5 text-text-muted transition-colors group-hover:text-hover-text" strokeWidth={1.8} />}
+
                   {label}
                 </Link>
               ))}

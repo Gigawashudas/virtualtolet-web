@@ -300,7 +300,7 @@ export default async function HomePage() {
 
               <QuickAction icon={Plus} title="Post a TO-LET" description="Share your rental with others." href={postToLetHref} />
 
-              <QuickAction icon={Bookmark} title="Saved listings" description="Keep your favourites close." href={savedHref} />
+              {/* <QuickAction icon={Bookmark} title="Saved listings" description="Keep your favourites close." href={savedHref} /> */}
 
               <QuickAction icon={UserRound} title="My profile" description="Manage your account." href={profileHref} />
             </div>
@@ -334,7 +334,7 @@ export default async function HomePage() {
           </div>
 
           {/* RIGHT ASIDE */}
-          <aside id="services">
+          {/* <aside id="services">
             <div className="mb-5">
               <h2 className="text-xl font-bold tracking-tight text-text-primary">Local services</h2>
 
@@ -346,7 +346,7 @@ export default async function HomePage() {
                 <ServiceItem key={title} title={title} description={description} />
               ))}
             </div>
-          </aside>
+          </aside> */}
         </section>
 
         {/* FOOTER */}
