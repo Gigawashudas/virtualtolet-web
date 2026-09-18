@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Bookmark, ChevronRight, Home, Plus, Search, UserRound } from "lucide-react";
+
+import { ChevronRight, Home, Search } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
 import VirtualToletLogo from "@/components/VirtualToletLogo";
@@ -42,15 +43,6 @@ type PublishedListing = {
     sort_order: number;
   }[];
 };
-
-const services = [
-  ["Electrician", "Electrical work"],
-  ["Plumber", "Water & plumbing"],
-  ["Cleaning", "Home cleaning"],
-  ["Moving", "House shifting"],
-  ["Internet", "Internet connection"],
-  ["AC Service", "Repair & maintenance"],
-];
 
 function formatRent(value: number | null) {
   if (value === null) {
@@ -166,48 +158,8 @@ function ListingCard({ listing }: { listing: PublishedListing }) {
   );
 }
 
-function QuickAction({ icon: Icon, title, description, href = "#" }: { icon: typeof Search; title: string; description: string; href?: string }) {
-  return (
-    <Link href={href} className={["group flex min-h-[76px] items-center gap-3 rounded-xl", "border border-border bg-background p-3", "transition-all duration-200", "hover:border-hover-border hover:bg-hover-background"].join(" ")}>
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-green/10 transition-colors group-hover:bg-brand-green/15">
-        <Icon className="h-5 w-5 text-brand-green transition-colors group-hover:text-hover-text" strokeWidth={1.8} />
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-text-primary transition-colors group-hover:text-hover-text">{title}</span>
-
-        <span className="mt-0.5 block text-xs leading-4 text-text-secondary">{description}</span>
-      </span>
-
-      <ChevronRight className="h-4 w-4 shrink-0 text-text-muted transition-all group-hover:translate-x-0.5 group-hover:text-hover-text" strokeWidth={1.8} />
-    </Link>
-  );
-}
-
-function ServiceItem({ title, description }: { title: string; description: string }) {
-  return (
-    <Link href="#" className={["group flex min-h-16 items-center gap-3 rounded-lg", "border border-transparent px-2 py-2", "transition-all duration-200", "hover:border-hover-border hover:bg-hover-background"].join(" ")}>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-green/10 transition-colors group-hover:bg-brand-green/15">
-        <Home className="h-4 w-4 text-brand-green transition-colors" strokeWidth={1.7} />
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-text-primary transition-colors group-hover:text-hover-text">{title}</span>
-
-        <span className="mt-0.5 block truncate text-xs text-text-secondary">{description}</span>
-      </span>
-
-      <ChevronRight className="h-4 w-4 shrink-0 text-text-muted transition-colors group-hover:text-hover-text" strokeWidth={1.8} />
-    </Link>
-  );
-}
-
 export default async function HomePage() {
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   const { data: listings, error } = await supabase
     .from("listings")
@@ -251,18 +203,13 @@ export default async function HomePage() {
 
   const publishedListings = (listings ?? []) as unknown as PublishedListing[];
 
-  const postToLetHref = user ? "/post-to-let" : "/sign-in?redirect=/post-to-let";
-
-  const savedHref = user ? "/saved" : "/sign-in?redirect=/saved";
-
-  const profileHref = user ? "/profile" : "/sign-in?redirect=/profile";
-
   return (
     <main className="min-h-screen bg-background text-foreground">
       <Navbar />
 
       <div className="mx-auto max-w-[1440px] px-6 pb-16 sm:px-8 lg:px-10">
         {/* HERO */}
+
         <section className="py-12 sm:py-16 lg:py-20">
           <div className="max-w-4xl">
             <p className="text-xs font-bold tracking-[0.18em] text-brand-green">VIRTUALTOLET</p>
@@ -275,7 +222,7 @@ export default async function HomePage() {
 
             <p className="mt-6 max-w-2xl text-base leading-7 text-text-secondary">Discover TO-LETs, check what is actually available, and connect directly with the people behind them.</p>
 
-            <Link href="/rentals" className="group mt-7 flex min-h-16 max-w-2xl items-center gap-3 rounded-xl border border-border bg-background px-5 transition-all duration-200 hover:border-hover-border hover:bg-hover-background">
+            <Link href="/rentals" className={["group mt-7 flex min-h-16 max-w-2xl items-center gap-3 rounded-xl", "border border-border bg-background px-5", "transition-all duration-200", "hover:border-hover-border hover:bg-hover-background"].join(" ")}>
               <Search className="h-5 w-5 shrink-0 text-brand-green transition-colors group-hover:text-hover-text" strokeWidth={1.8} />
 
               <span className="flex-1 text-sm font-medium text-text-muted transition-colors group-hover:text-hover-text">Search homes, areas or rent</span>
@@ -286,27 +233,8 @@ export default async function HomePage() {
         </section>
 
         {/* CONTENT */}
-        <section className="grid grid-cols-1 gap-8 xl:grid-cols-[220px_minmax(0,1fr)_250px]">
-          {/* LEFT ASIDE */}
-          <aside>
-            <div className="mb-5">
-              <h2 className="text-xl font-bold tracking-tight text-text-primary">Quick actions</h2>
 
-              <p className="mt-1 text-sm text-text-secondary">Get things done faster</p>
-            </div>
-
-            <div className="space-y-2">
-              <QuickAction icon={Search} title="Find a rental" description="Browse homes around you." href="/rentals" />
-
-              <QuickAction icon={Plus} title="Post a TO-LET" description="Share your rental with others." href={postToLetHref} />
-
-              {/* <QuickAction icon={Bookmark} title="Saved listings" description="Keep your favourites close." href={savedHref} /> */}
-
-              <QuickAction icon={UserRound} title="My profile" description="Manage your account." href={profileHref} />
-            </div>
-          </aside>
-
-          {/* MAIN */}
+        <section>
           <div className="min-w-0">
             <section>
               <div className="mb-5">
@@ -324,7 +252,7 @@ export default async function HomePage() {
                   <p className="mt-2 text-sm text-text-secondary">New verified listings will appear here.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {publishedListings.map((listing) => (
                     <ListingCard key={listing.id} listing={listing} />
                   ))}
@@ -332,24 +260,10 @@ export default async function HomePage() {
               )}
             </section>
           </div>
-
-          {/* RIGHT ASIDE */}
-          {/* <aside id="services">
-            <div className="mb-5">
-              <h2 className="text-xl font-bold tracking-tight text-text-primary">Local services</h2>
-
-              <p className="mt-1 text-sm text-text-secondary">Useful services around your home</p>
-            </div>
-
-            <div className="rounded-xl border border-border bg-background p-1">
-              {services.map(([title, description]) => (
-                <ServiceItem key={title} title={title} description={description} />
-              ))}
-            </div>
-          </aside> */}
         </section>
 
         {/* FOOTER */}
+
         <footer className="mt-16 flex flex-col gap-5 border-t border-border pt-7 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <VirtualToletLogo className="origin-left scale-[0.82]" />
