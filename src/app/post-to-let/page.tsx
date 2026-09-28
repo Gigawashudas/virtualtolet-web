@@ -1033,8 +1033,8 @@ export default function PostToLetPage() {
                 {form.propertyType === "Apartment" && (
                   <>
                     <Field label="Suitable for">
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        {["Family", "Bachelor", "Both"].map((option) => (
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {["Family", "Male Bachelor", "Female Bachelor", "Family or Female Bachelor", "Any"].map((option) => (
                           <ChoiceButton key={option} label={option} selected={form.suitableFor === option} onClick={() => updateField("suitableFor", option)} />
                         ))}
                       </div>
