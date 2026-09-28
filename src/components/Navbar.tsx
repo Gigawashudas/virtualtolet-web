@@ -287,6 +287,8 @@ export default function Navbar() {
 
   const hiddenLinks = hiddenCount > 0 ? breadcrumbLinks.slice(0, hiddenCount) : [];
 
+  const hasDesktopMoreMenu = hiddenLinks.length > 0;
+
   return (
     <header className="relative z-50 border-b border-border bg-background">
       <div className="mx-auto grid h-[72px] max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-4 sm:px-6 lg:px-8">
@@ -299,14 +301,20 @@ export default function Navbar() {
         <div ref={navContainerRef} className="relative min-w-0">
           <div className="flex min-w-0 items-center justify-center">
             {/* 3-DOT MENU */}
-            {hiddenLinks.length > 0 && (
-              <div ref={moreMenuRef} className="relative mr-1 shrink-0">
-                <button type="button" aria-label="Show hidden navigation links" aria-expanded={moreOpen} aria-haspopup="menu" onClick={() => setMoreOpen((current) => !current)} className={["flex h-10 w-10 items-center justify-center", "rounded-lg text-text-primary", "transition-colors", "hover:bg-hover-background hover:text-hover-text", moreOpen ? "bg-hover-background" : ""].join(" ")}>
+            {(hasDesktopMoreMenu || breadcrumbLinks.length > 0) && (
+              <div ref={moreMenuRef} className={["relative mr-1 shrink-0", hasDesktopMoreMenu ? "hidden sm:block" : "hidden sm:hidden", "block sm:hidden"].join(" ")}>
+                <button type="button" aria-label="Show more navigation options" aria-expanded={moreOpen} aria-haspopup="menu" onClick={() => setMoreOpen((current) => !current)} className={["flex h-10 w-10 items-center justify-center", "rounded-lg text-text-primary", "transition-colors", "hover:bg-hover-background hover:text-hover-text", moreOpen ? "bg-hover-background" : ""].join(" ")}>
                   <Ellipsis className="h-5 w-5" strokeWidth={1.8} />
                 </button>
 
                 {moreOpen && (
                   <div role="menu" className="absolute left-0 top-12 z-[100] min-w-[190px] rounded-lg border border-border bg-background p-1.5 shadow-xl">
+                    {/* MOBILE POST A TO-LET */}
+                    <Link href={postToLetHref} role="menuitem" onClick={closeMoreMenu} className="flex min-h-10 items-center rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:hidden">
+                      Post a TO-LET
+                    </Link>
+
+                    {/* HIDDEN BREADCRUMBS */}
                     {hiddenLinks.map((link) => (
                       <Link key={link.href} href={link.href} role="menuitem" onClick={closeMoreMenu} className="flex min-h-10 items-center rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
                         {link.label}
@@ -343,7 +351,7 @@ export default function Navbar() {
 
         {/* RIGHT — ACTIONS */}
         <div className="flex shrink-0 items-center justify-end gap-1">
-          {/* Always visible on desktop */}
+          {/* Desktop only */}
           <Link href={postToLetHref} className="hidden h-10 items-center whitespace-nowrap rounded-lg px-3 text-sm font-bold text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:flex">
             Post a TO-LET
           </Link>
@@ -352,6 +360,7 @@ export default function Navbar() {
 
           <button type="button" aria-label="Notifications" className="relative hidden h-10 w-10 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:flex">
             <Bell className="h-5 w-5" strokeWidth={1.8} />
+
             <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-brand-red" />
           </button>
 
@@ -370,15 +379,6 @@ export default function Navbar() {
               Sign In
             </Link>
           )}
-        </div>
-      </div>
-
-      {/* MOBILE POST A TO-LET */}
-      <div className="border-t border-border bg-background sm:hidden">
-        <div className="mx-auto flex max-w-[1440px] items-center px-4 py-2">
-          <Link href={postToLetHref} onClick={closeMoreMenu} className="flex min-h-10 flex-1 items-center rounded-md px-2 text-xs font-bold uppercase tracking-[0.08em] text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
-            Post a TO-LET
-          </Link>
         </div>
       </div>
     </header>
