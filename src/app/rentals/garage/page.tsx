@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, SlidersHorizontal } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
-
 import { createClient } from "@/lib/supabase/server";
 
 type SearchParams = {
@@ -190,19 +189,19 @@ export default async function GarageRentalPage({ searchParams }: { searchParams:
   const sortedListings = sortListings(blockFilteredListings, query.sort ?? "newest");
 
   return (
-    <main className="min-h-dvh bg-background text-foreground">
+    <main className="min-h-dvh overflow-x-hidden bg-background text-foreground">
       <Navbar />
 
-      <section className="mx-auto max-w-[1440px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
+      <section className="mx-auto min-w-0 max-w-[1440px] overflow-x-hidden px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
         {/* Header */}
-        <div className="border-b border-border pb-5 sm:pb-7">
+        <div className="min-w-0 border-b border-border pb-5 sm:pb-7">
           <Link href="/rentals" className="mb-4 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-text-muted transition-colors hover:text-black">
             <ArrowLeft className="h-4 w-4" strokeWidth={1.6} />
             Rentals
           </Link>
 
-          <div className="flex items-end justify-between gap-4">
-            <div>
+          <div className="flex min-w-0 items-end justify-between gap-4">
+            <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted sm:text-xs">Rental / Garage</p>
 
               <h1 className="mt-2 text-4xl font-extrabold uppercase leading-[0.9] tracking-[-0.06em] sm:text-5xl lg:text-7xl">Garage</h1>
@@ -210,7 +209,7 @@ export default async function GarageRentalPage({ searchParams }: { searchParams:
               <p className="mt-3 max-w-xl text-sm leading-6 text-text-secondary">Available garages and parking spaces for rent.</p>
             </div>
 
-            <div className="hidden text-right sm:block">
+            <div className="hidden shrink-0 text-right sm:block">
               <p className="text-3xl font-extrabold tracking-[-0.04em]">{sortedListings.length}</p>
 
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">{sortedListings.length === 1 ? "Garage" : "Garages"}</p>
@@ -219,11 +218,11 @@ export default async function GarageRentalPage({ searchParams }: { searchParams:
         </div>
 
         {/* Block filter + Sort */}
-        <div className="flex flex-col gap-4 border-b border-border py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <SlidersHorizontal className="h-4 w-4 text-text-muted" strokeWidth={1.7} />
+        <div className="flex min-w-0 flex-col gap-4 border-b border-border py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4 shrink-0 text-text-muted" strokeWidth={1.7} />
 
-            <span className="mr-1 text-xs font-bold uppercase tracking-[0.14em] text-text-muted">Block</span>
+            <span className="mr-1 shrink-0 text-xs font-bold uppercase tracking-[0.14em] text-text-muted">Block</span>
 
             <Link href={`/rentals/garage${query.sort ? `?sort=${encodeURIComponent(query.sort)}` : ""}`} className={["border px-3 py-2 text-xs font-bold uppercase tracking-[0.08em]", "transition-colors", selectedBlock === "" ? "border-black bg-black text-white" : "border-border bg-surface text-text-primary hover:border-black hover:text-black"].join(" ")}>
               All
@@ -233,7 +232,6 @@ export default async function GarageRentalPage({ searchParams }: { searchParams:
               const search = new URLSearchParams();
 
               search.set("block", block);
-
               search.set("sort", query.sort ?? "newest");
 
               return (
@@ -244,24 +242,21 @@ export default async function GarageRentalPage({ searchParams }: { searchParams:
             })}
           </div>
 
-          <form method="GET" action="/rentals/garage" className="flex items-center gap-2">
+          <form method="GET" action="/rentals/garage" className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
             {selectedBlock && <input type="hidden" name="block" value={selectedBlock} />}
 
-            <label htmlFor="sort" className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">
+            <label htmlFor="sort" className="shrink-0 text-xs font-bold uppercase tracking-[0.14em] text-text-muted">
               Sort
             </label>
 
-            <select id="sort" name="sort" defaultValue={query.sort ?? "newest"} className="h-9 border border-border bg-surface px-3 text-xs font-semibold outline-none transition-colors focus:border-black">
+            <select id="sort" name="sort" defaultValue={query.sort ?? "newest"} className="h-9 min-w-0 max-w-full border border-border bg-surface px-3 text-xs font-semibold outline-none transition-colors focus:border-black">
               <option value="newest">Newest</option>
-
               <option value="oldest">Oldest</option>
-
               <option value="rent-low">Rent: Low to High</option>
-
               <option value="rent-high">Rent: High to Low</option>
             </select>
 
-            <button type="submit" className="h-9 border border-black bg-black px-3 text-xs font-bold uppercase tracking-[0.08em] text-white transition-opacity hover:opacity-80">
+            <button type="submit" className="h-9 shrink-0 border border-black bg-black px-3 text-xs font-bold uppercase tracking-[0.08em] text-white transition-opacity hover:opacity-80">
               Apply
             </button>
           </form>
@@ -286,12 +281,10 @@ export default async function GarageRentalPage({ searchParams }: { searchParams:
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 pt-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid min-w-0 grid-cols-1 gap-3 pt-5 sm:grid-cols-2 lg:grid-cols-3">
             {sortedListings.map((listing) => {
               const property = firstRelation(listing.properties);
-
               const unit = firstRelation(listing.property_units);
-
               const block = getListingBlock(listing);
 
               const media = [...(listing.listing_media ?? [])].filter((item) => item.media_type === "image").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0];
@@ -301,11 +294,11 @@ export default async function GarageRentalPage({ searchParams }: { searchParams:
               const availableDate = formatDate(listing.available_from);
 
               return (
-                <Link key={listing.id} href={`/rentals/${listing.id}`} className="group block">
-                  <article className={["flex aspect-square flex-col justify-between", "border border-border bg-surface p-5 sm:p-6 lg:p-7", "transition-all duration-300 ease-out", "hover:-translate-y-1 hover:border-black", "hover:bg-hover-background hover:shadow-2xl"].join(" ")}>
+                <Link key={listing.id} href={`/rentals/${listing.id}`} className="group block min-w-0">
+                  <article className={["flex min-w-0 aspect-square flex-col justify-between", "border border-border bg-surface p-5 sm:p-6 lg:p-7", "transition-all duration-300 ease-out", "hover:-translate-y-1 hover:border-black", "hover:bg-hover-background hover:shadow-2xl"].join(" ")}>
                     {/* Top */}
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex flex-wrap gap-2">
+                    <div className="flex min-w-0 items-start justify-between gap-4">
+                      <div className="flex min-w-0 flex-wrap gap-2">
                         {block && <span className="border border-border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted transition-colors group-hover:border-black group-hover:text-black">{block}</span>}
 
                         <span className="border border-border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted transition-colors group-hover:border-black group-hover:text-black">Garage</span>
@@ -316,33 +309,33 @@ export default async function GarageRentalPage({ searchParams }: { searchParams:
 
                     {/* Image */}
                     {imageUrl && (
-                      <div className="my-4 aspect-[4/3] overflow-hidden border border-border bg-hover-background">
+                      <div className="my-4 aspect-[4/3] min-w-0 overflow-hidden border border-border bg-hover-background">
                         <img src={imageUrl} alt={media?.alt_text || `${block ?? "Garage"} garage`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
                       </div>
                     )}
 
                     {/* Main information */}
-                    <div className="mt-auto">
-                      <div className="flex items-end justify-between gap-4">
+                    <div className="mt-auto min-w-0">
+                      <div className="flex min-w-0 items-end justify-between gap-4">
                         <div className="min-w-0">
                           {block && <p className="text-xs font-bold uppercase tracking-[0.16em] text-text-muted">{block}</p>}
 
-                          <h2 className="mt-2 text-3xl font-extrabold uppercase leading-[0.9] tracking-[-0.06em] text-text-primary transition-colors group-hover:text-black sm:text-4xl">{unit?.unit_label || "Garage"}</h2>
+                          <h2 className="mt-2 break-words text-3xl font-extrabold uppercase leading-[0.9] tracking-[-0.06em] text-text-primary transition-colors group-hover:text-black sm:text-4xl">{unit?.unit_label || "Garage"}</h2>
                         </div>
 
-                        <div className="shrink-0 text-right">
-                          <p className="text-xl font-extrabold tracking-[-0.03em] text-text-primary transition-colors group-hover:text-black sm:text-2xl">{formatMoney(listing.monthly_rent)}</p>
+                        <div className="min-w-0 shrink-0 text-right">
+                          <p className="break-words text-xl font-extrabold tracking-[-0.03em] text-text-primary transition-colors group-hover:text-black sm:text-2xl">{formatMoney(listing.monthly_rent)}</p>
 
                           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">/ month</p>
                         </div>
                       </div>
 
-                      <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 border-t border-border pt-4 text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">
+                      <div className="mt-5 flex min-w-0 flex-wrap gap-x-4 gap-y-2 border-t border-border pt-4 text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">
                         {unit?.floor !== null && unit?.floor !== undefined && <span>Floor {unit.floor}</span>}
 
                         {unit?.size_sqft !== null && unit?.size_sqft !== undefined && <span>{unit.size_sqft.toLocaleString("en-BD")} Sq Ft</span>}
 
-                        {property?.area && <span>{property.area}</span>}
+                        {property?.area && <span className="break-words">{property.area}</span>}
                       </div>
 
                       {availableDate && <p className="mt-3 text-xs text-text-muted">Available {availableDate}</p>}
