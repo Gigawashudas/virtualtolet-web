@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import Link from "next/link";
 
-import { ArrowRight, Home, LogOut, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowRight, CheckCircle2, Home, LogOut, ShieldCheck, UserRound, XCircle } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
 
@@ -29,12 +29,22 @@ function formatListingType(value: string) {
   return labels[value] ?? value;
 }
 
-function formatStatus(value: string | null) {
+function formatPublicationStatus(value: string | null) {
   const labels: Record<string, string> = {
     pending_review: "Pending review",
     published: "Published",
     rejected: "Rejected",
     draft: "Draft",
+  };
+
+  return value ? (labels[value] ?? value) : "Unknown";
+}
+
+function formatLifecycle(value: string | null) {
+  const labels: Record<string, string> = {
+    active: "Active",
+    rented: "Rented",
+    inactive: "Inactive",
   };
 
   return value ? (labels[value] ?? value) : "Unknown";
@@ -48,13 +58,25 @@ function formatRent(value: number | null) {
   return `৳${new Intl.NumberFormat("en-BD").format(value)} / month`;
 }
 
-function getStatusClass(value: string | null) {
+function getPublicationStatusClass(value: string | null) {
   if (value === "published") {
     return "border-brand-green/20 bg-brand-green/5 text-brand-green";
   }
 
   if (value === "rejected") {
     return "border-brand-red/20 bg-brand-red/5 text-brand-red";
+  }
+
+  return "border-border bg-background text-text-secondary";
+}
+
+function getLifecycleClass(value: string | null) {
+  if (value === "rented") {
+    return "border-brand-red/20 bg-brand-red/5 text-brand-red";
+  }
+
+  if (value === "active") {
+    return "border-brand-green/20 bg-brand-green/5 text-brand-green";
   }
 
   return "border-border bg-background text-text-secondary";
@@ -113,6 +135,105 @@ export default async function ProfilePage() {
     await supabase.auth.signOut();
 
     redirect("/sign-in");
+  }
+
+  async function markAsRented(formData: FormData) {
+    "use server";
+
+    const listingId = String(formData.get("listingId") ?? "").trim();
+
+    if (!listingId) {
+      return;
+    }
+
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      redirect("/sign-in");
+    }
+
+    const { error } = await supabase
+      .from("listings")
+      .update({
+        rental_lifecycle: "rented",
+      })
+      .eq("id", listingId)
+      .eq("created_by", user.id);
+
+    if (error) {
+      console.error("MARK LISTING AS RENTED ERROR:", error);
+      throw new Error("Failed to mark the listing as rented.");
+    }
+
+    redirect("/profile");
+  }
+
+  async function markAsAvailable(formData: FormData) {
+    "use server";
+
+    const listingId = String(formData.get("listingId") ?? "").trim();
+
+    if (!listingId) {
+      return;
+    }
+
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      redirect("/sign-in");
+    }
+
+    const { error } = await supabase
+      .from("listings")
+      .update({
+        rental_lifecycle: "active",
+      })
+      .eq("id", listingId)
+      .eq("created_by", user.id);
+
+    if (error) {
+      console.error("MARK LISTING AS AVAILABLE ERROR:", error);
+      throw new Error("Failed to mark the listing as available.");
+    }
+
+    redirect("/profile");
+  }
+
+  async function removeListing(formData: FormData) {
+    "use server";
+
+    const listingId = String(formData.get("listingId") ?? "").trim();
+
+    if (!listingId) {
+      return;
+    }
+
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      redirect("/sign-in");
+    }
+
+    const { error } = await supabase.from("listings").delete().eq("id", listingId).eq("created_by", user.id);
+
+    if (error) {
+      console.error("REMOVE LISTING ERROR:", error);
+      throw new Error("Failed to remove the listing.");
+    }
+
+    redirect("/profile");
   }
 
   return (
@@ -177,7 +298,7 @@ export default async function ProfilePage() {
 
                   <h2 className="mt-1 text-xl font-extrabold text-text-primary">My listings</h2>
 
-                  <p className="mt-2 text-sm leading-6 text-text-secondary">View the properties you have posted on Virtual To-let.</p>
+                  <p className="mt-2 text-sm leading-6 text-text-secondary">View and manage the properties you have posted on Virtual To-let.</p>
                 </div>
 
                 <Link href="/post-to-let" className="hidden shrink-0 items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-bold text-text-primary transition-colors hover:border-hover-border hover:bg-hover-background hover:text-hover-text sm:flex">
@@ -201,25 +322,77 @@ export default async function ProfilePage() {
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {userListings.map((listing) => (
-                    <Link key={listing.id} href={`/rentals/${listing.id}`} className="group block py-5 first:pt-6 last:pb-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-md border border-border bg-background px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-text-muted">{formatListingType(listing.listing_type)}</span>
+                  {userListings.map((listing) => {
+                    const isRented = listing.rental_lifecycle === "rented";
+                    const isActive = listing.rental_lifecycle === "active";
 
-                            <span className={`rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ${getStatusClass(listing.publication_status)}`}>{formatStatus(listing.publication_status)}</span>
+                    return (
+                      <div key={listing.id} className="py-6 first:pt-6 last:pb-0">
+                        <div className="flex flex-col gap-5">
+                          {/* LISTING INFO */}
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-md border border-border bg-background px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-text-muted">{formatListingType(listing.listing_type)}</span>
+
+                                <span className={`rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ${getPublicationStatusClass(listing.publication_status)}`}>{formatPublicationStatus(listing.publication_status)}</span>
+
+                                <span className={`rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ${getLifecycleClass(listing.rental_lifecycle)}`}>{formatLifecycle(listing.rental_lifecycle)}</span>
+                              </div>
+
+                              <h3 className="mt-3 text-base font-bold text-text-primary">{listing.title}</h3>
+
+                              <p className="mt-1 text-sm font-medium text-text-secondary">{formatRent(listing.monthly_rent)}</p>
+                            </div>
+
+                            {isRented ? <XCircle className="mt-1 h-5 w-5 shrink-0 text-brand-red" strokeWidth={1.8} /> : <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-brand-green" strokeWidth={1.8} />}
                           </div>
 
-                          <h3 className="mt-3 truncate text-base font-bold text-text-primary transition-colors group-hover:text-hover-text">{listing.title}</h3>
+                          {/* ACTIONS */}
+                          <div className="flex flex-wrap gap-2">
+                            <Link href={`/rentals/${listing.id}`} className="inline-flex h-10 items-center gap-2 rounded-lg border border-border px-4 text-sm font-bold text-text-primary transition-colors hover:border-hover-border hover:bg-hover-background hover:text-hover-text">
+                              View
+                              <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
+                            </Link>
 
-                          <p className="mt-1 text-sm font-medium text-text-secondary">{formatRent(listing.monthly_rent)}</p>
+                            {isActive && (
+                              <form action={markAsRented}>
+                                <input type="hidden" name="listingId" value={listing.id} />
+
+                                <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-red/20 bg-brand-red/5 px-4 text-sm font-bold text-brand-red transition-colors hover:bg-brand-red/10">
+                                  Mark as Rented
+                                  <XCircle className="h-4 w-4" strokeWidth={1.8} />
+                                </button>
+                              </form>
+                            )}
+
+                            {isRented && (
+                              <form action={markAsAvailable}>
+                                <input type="hidden" name="listingId" value={listing.id} />
+
+                                <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-green/20 bg-brand-green/5 px-4 text-sm font-bold text-brand-green transition-colors hover:bg-brand-green/10">
+                                  Mark as Available
+                                  <CheckCircle2 className="h-4 w-4" strokeWidth={1.8} />
+                                </button>
+                              </form>
+                            )}
+
+                            <Link href={`/profile/listings/${listing.id}/edit`} className="inline-flex h-10 items-center rounded-lg border border-border px-4 text-sm font-bold text-text-primary transition-colors hover:border-hover-border hover:bg-hover-background hover:text-hover-text">
+                              Edit
+                            </Link>
+
+                            <form action={removeListing}>
+                              <input type="hidden" name="listingId" value={listing.id} />
+
+                              <button type="submit" className="inline-flex h-10 items-center rounded-lg border border-border px-4 text-sm font-bold text-text-secondary transition-colors hover:border-brand-red/20 hover:bg-brand-red/5 hover:text-brand-red">
+                                Remove
+                              </button>
+                            </form>
+                          </div>
                         </div>
-
-                        <ArrowRight className="mt-5 h-5 w-5 shrink-0 text-text-muted transition-transform group-hover:translate-x-1 group-hover:text-hover-text" strokeWidth={1.8} />
                       </div>
-                    </Link>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
