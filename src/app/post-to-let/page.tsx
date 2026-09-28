@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { useRouter } from "next/navigation";
+
 import { Check, ChevronDown, ImagePlus, Play, ShieldCheck, Video, X } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
+
 import { createClient } from "@/lib/supabase/client";
 
 type PropertyType = "Apartment" | "Room" | "Seat" | "Garage";
+
 type PostRole = "owner" | "community";
 
 type ListingMedia = {
@@ -173,6 +177,7 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
 
 export default function PostToLetPage() {
   const router = useRouter();
+
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [form, setForm] = useState<ListingForm>(initialForm);
   const [postRole, setPostRole] = useState<PostRole>("owner");
@@ -180,13 +185,6 @@ export default function PostToLetPage() {
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  /**
-   * Protect the page.
-   *
-   * If the user is not authenticated, send them to sign-up
-   * and preserve the destination so the sign-up page can return
-   * them to the listing form after authentication.
-   */
   useEffect(() => {
     let mounted = true;
 
@@ -261,7 +259,6 @@ export default function PostToLetPage() {
     }
 
     const currentPhotoCount = form.media.filter((media) => media.type === "photo").length;
-
     const currentVideoCount = form.media.filter((media) => media.type === "video").length;
 
     if (mediaType === "photo" && currentPhotoCount + files.length > MAX_PHOTOS) {
@@ -343,7 +340,6 @@ export default function PostToLetPage() {
       }));
     } catch (error) {
       console.error("MEDIA UPLOAD ERROR:", error);
-
       window.alert(error instanceof Error ? error.message : "Media upload failed. Please try again.");
     } finally {
       setUploadingMedia(false);
@@ -431,7 +427,6 @@ export default function PostToLetPage() {
 
       const addressLine = addressParts.join(", ");
 
-      // Property
       const { data: property, error: propertyError } = await supabase
         .from("properties")
         .insert({
@@ -451,8 +446,6 @@ export default function PostToLetPage() {
         throw propertyError ?? new Error("Failed to create property.");
       }
 
-      // Property unit
-      // Garage listings do not need a property unit.
       let unitId: string | null = null;
 
       if (form.propertyType !== "Garage") {
@@ -479,7 +472,6 @@ export default function PostToLetPage() {
         unitId = unit.id;
       }
 
-      // Listing details
       const details = {
         property: {
           property_type: form.propertyType,
@@ -489,22 +481,18 @@ export default function PostToLetPage() {
           size_sqft: form.size ? Number(form.size) : null,
           available_from: form.availableFrom || null,
         },
-
         occupancy: {
           suitable_for: form.propertyType === "Apartment" ? form.suitableFor : null,
           gender: form.propertyType === "Room" ? form.gender.join(", ") : form.propertyType === "Seat" ? form.gender[0] || null : null,
           room_capacity: form.propertyType === "Room" || form.propertyType === "Seat" ? (form.roomCapacity ? Number(form.roomCapacity) : null) : null,
           available_seats: form.propertyType === "Seat" && form.availableSeats ? Number(form.availableSeats) : null,
         },
-
         bathroom: {
           location: form.propertyType === "Room" || form.propertyType === "Seat" ? form.bathroomLocation : null,
         },
-
         balcony: {
           available: form.propertyType === "Room" || form.propertyType === "Seat" ? form.balconyAvailable : null,
         },
-
         facilities: {
           lift: form.propertyType === "Garage" ? null : form.lift,
           generator: form.propertyType === "Garage" ? null : form.generator,
@@ -512,27 +500,23 @@ export default function PostToLetPage() {
           cctv: form.cctv,
           cctv_coverage: form.cctv ? form.cctvCoverage || null : null,
         },
-
         gate: {
           access: form.gateAccess,
           open_from: form.gateAccess === "fixed" ? form.gateOpenFrom || null : null,
           open_to: form.gateAccess === "fixed" ? form.gateOpenTo || null : null,
         },
-
         parking: {
           bike: {
             available: form.propertyType === "Garage" ? null : form.bikeParking,
             charge_type: form.propertyType === "Garage" ? null : form.bikeParking ? form.bikeParkingCharge : null,
             monthly_charge: form.propertyType === "Garage" ? null : form.bikeParking && form.bikeParkingCharge === "extra" && form.bikeParkingChargeAmount.trim() ? Number(form.bikeParkingChargeAmount) : null,
           },
-
           car: {
             available: form.propertyType === "Garage" ? null : form.carParking,
             charge_type: form.propertyType === "Garage" ? null : form.carParking ? form.carParkingCharge : null,
             monthly_charge: form.propertyType === "Garage" ? null : form.carParking && form.carParkingCharge === "extra" && form.carParkingChargeAmount.trim() ? Number(form.carParkingChargeAmount) : null,
           },
         },
-
         costs: {
           monthly_rent: form.rent ? Number(form.rent) : null,
           service_charge: form.serviceCharge ? Number(form.serviceCharge) : null,
@@ -540,7 +524,6 @@ export default function PostToLetPage() {
           other_charges: form.otherCharges || null,
           security_deposit: form.propertyType === "Garage" && form.securityDeposit ? Number(form.securityDeposit) : null,
         },
-
         garage:
           form.propertyType === "Garage"
             ? {
@@ -551,26 +534,13 @@ export default function PostToLetPage() {
             : null,
       };
 
-      // Listing
-      //
-      // source describes how the listing entered the system.
-      //
-      // post_role describes who is posting:
-      // owner or community.
-      //
-      // The database trigger validates and assigns owner_profile_id.
-
       const { data: listing, error: listingError } = await supabase
         .from("listings")
         .insert({
           property_id: property.id,
           unit_id: unitId,
           created_by: user.id,
-
-          // The trigger controls owner_profile_id.
-          // Do not manually assign it here.
           owner_profile_id: null,
-
           listing_type: listingType,
           source: "community",
           post_role: postRole,
@@ -592,7 +562,6 @@ export default function PostToLetPage() {
         throw listingError ?? new Error("Failed to create listing.");
       }
 
-      // Listing-specific contact number
       const { error: contactError } = await supabase.from("listing_contacts").insert({
         listing_id: listing.id,
         contact_type: "phone",
@@ -606,7 +575,6 @@ export default function PostToLetPage() {
         throw contactError;
       }
 
-      // Apartment tenant preference
       if (form.propertyType === "Apartment" && form.suitableFor) {
         const { error: preferenceError } = await supabase.from("listing_preferences").insert({
           listing_id: listing.id,
@@ -621,7 +589,6 @@ export default function PostToLetPage() {
         }
       }
 
-      // Room / seat preference
       if (form.propertyType === "Room" || form.propertyType === "Seat") {
         const { error: preferenceError } = await supabase.from("listing_preferences").insert({
           listing_id: listing.id,
@@ -634,7 +601,6 @@ export default function PostToLetPage() {
         }
       }
 
-      // Listing media
       if (form.media.length > 0) {
         const mediaRows = form.media.map((media, index) => ({
           listing_id: listing.id,
@@ -652,7 +618,6 @@ export default function PostToLetPage() {
         }
       }
 
-      // Listing event
       const { error: eventError } = await supabase.from("listing_events").insert({
         listing_id: listing.id,
         actor_id: user.id,
@@ -675,7 +640,6 @@ export default function PostToLetPage() {
     } catch (error) {
       console.error("LISTING SUBMISSION ERROR:", error);
       setSubmitting(false);
-
       window.alert(error instanceof Error ? error.message : "Failed to submit your listing. Please try again.");
     }
   }
@@ -702,7 +666,6 @@ export default function PostToLetPage() {
             <Field label="Bike parking">
               <div className="grid gap-3 sm:grid-cols-2">
                 <ChoiceButton label="Not available" selected={!currentForm.bikeParking} onClick={() => updateField("bikeParking", false)} />
-
                 <ChoiceButton label="Available" selected={currentForm.bikeParking} onClick={() => updateField("bikeParking", true)} />
               </div>
             </Field>
@@ -712,7 +675,6 @@ export default function PostToLetPage() {
                 <Field label="Bike parking charge">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <ChoiceButton label="Included in rent" selected={currentForm.bikeParkingCharge === "included"} onClick={() => updateField("bikeParkingCharge", "included")} />
-
                     <ChoiceButton label="Extra charge" selected={currentForm.bikeParkingCharge === "extra"} onClick={() => updateField("bikeParkingCharge", "extra")} />
                   </div>
                 </Field>
@@ -722,7 +684,6 @@ export default function PostToLetPage() {
                     <Field label="Bike parking monthly charge">
                       <div className="relative">
                         <span className="absolute left-4 top-[26px] text-sm font-bold text-text-secondary">৳</span>
-
                         <input required type="number" min="0" value={currentForm.bikeParkingChargeAmount} onChange={(event) => updateField("bikeParkingChargeAmount", event.target.value)} placeholder="e.g. 1000" className={`${inputClass} pl-9`} />
                       </div>
                     </Field>
@@ -736,7 +697,6 @@ export default function PostToLetPage() {
             <Field label="Car parking">
               <div className="grid gap-3 sm:grid-cols-2">
                 <ChoiceButton label="Not available" selected={!currentForm.carParking} onClick={() => updateField("carParking", false)} />
-
                 <ChoiceButton label="Available" selected={currentForm.carParking} onClick={() => updateField("carParking", true)} />
               </div>
             </Field>
@@ -746,7 +706,6 @@ export default function PostToLetPage() {
                 <Field label="Car parking charge">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <ChoiceButton label="Included in rent" selected={currentForm.carParkingCharge === "included"} onClick={() => updateField("carParkingCharge", "included")} />
-
                     <ChoiceButton label="Extra charge" selected={currentForm.carParkingCharge === "extra"} onClick={() => updateField("carParkingCharge", "extra")} />
                   </div>
                 </Field>
@@ -756,7 +715,6 @@ export default function PostToLetPage() {
                     <Field label="Car parking monthly charge">
                       <div className="relative">
                         <span className="absolute left-4 top-[26px] text-sm font-bold text-text-secondary">৳</span>
-
                         <input required type="number" min="0" value={currentForm.carParkingChargeAmount} onChange={(event) => updateField("carParkingChargeAmount", event.target.value)} placeholder="e.g. 3000" className={`${inputClass} pl-9`} />
                       </div>
                     </Field>
@@ -770,11 +728,6 @@ export default function PostToLetPage() {
     );
   }
 
-  /**
-   * While Supabase checks the current session, don't render
-   * the listing form. This prevents an unauthenticated user
-   * from briefly seeing the protected page.
-   */
   if (checkingAuth) {
     return (
       <main className="min-h-screen bg-background">
@@ -792,7 +745,6 @@ export default function PostToLetPage() {
 
   if (reviewing) {
     const photos = form.media.filter((media) => media.type === "photo");
-
     const videos = form.media.filter((media) => media.type === "video");
 
     return (
@@ -817,13 +769,9 @@ export default function PostToLetPage() {
               {form.propertyType === "Apartment" && (
                 <>
                   <ReviewRow label="Suitable for" value={form.suitableFor} />
-
                   <ReviewRow label="Bedrooms" value={form.bedrooms} />
-
                   <ReviewRow label="Bathrooms" value={form.bathrooms} />
-
                   <ReviewRow label="Balconies" value={form.balconies} />
-
                   <ReviewRow label="Size" value={form.size ? `${form.size} sq ft` : ""} />
                 </>
               )}
@@ -831,13 +779,9 @@ export default function PostToLetPage() {
               {form.propertyType === "Room" && (
                 <>
                   <ReviewRow label="For" value={form.gender.join(", ")} />
-
                   <ReviewRow label="Room capacity" value={form.roomCapacity ? `${form.roomCapacity} people` : ""} />
-
                   <ReviewRow label="Room size" value={form.size ? `${form.size} sq ft` : ""} />
-
                   <ReviewRow label="Bathroom" value={form.bathroomLocation} />
-
                   <ReviewRow label="Balcony" value={form.balconyAvailable ? "Yes" : "No"} />
                 </>
               )}
@@ -845,13 +789,9 @@ export default function PostToLetPage() {
               {form.propertyType === "Seat" && (
                 <>
                   <ReviewRow label="For" value={form.gender.join(", ")} />
-
                   <ReviewRow label="Total people in room" value={form.roomCapacity ? `${form.roomCapacity} people` : ""} />
-
                   <ReviewRow label="Available seats" value={form.availableSeats} />
-
                   <ReviewRow label="Bathroom" value={form.bathroomLocation} />
-
                   <ReviewRow label="Balcony" value={form.balconyAvailable ? "Yes" : "No"} />
                 </>
               )}
@@ -859,9 +799,7 @@ export default function PostToLetPage() {
               {form.propertyType === "Garage" && (
                 <>
                   <ReviewRow label="Vehicle type" value={form.vehicleType} />
-
                   <ReviewRow label="Garage type" value={form.garageType} />
-
                   <ReviewRow label="Size" value={form.size ? `${form.size} sq ft` : ""} />
                 </>
               )}
@@ -877,7 +815,6 @@ export default function PostToLetPage() {
               {form.propertyType !== "Garage" && (
                 <>
                   <ReviewRow label="Lift" value={form.lift ? "Available" : "Not available"} />
-
                   <ReviewRow label="Generator" value={form.generator ? "Available" : "Not available"} />
                 </>
               )}
@@ -965,8 +902,9 @@ export default function PostToLetPage() {
   }
 
   const photos = form.media.filter((media) => media.type === "photo");
-
   const videos = form.media.filter((media) => media.type === "video");
+
+  const selectedAreaOption = form.area === "Bashundhara R/A" ? "Bashundhara R/A" : form.area ? "Other" : "";
 
   return (
     <main className="min-h-screen bg-background">
@@ -1193,7 +1131,34 @@ export default function PostToLetPage() {
                   </Field>
 
                   <Field label="Area">
-                    <input required value={form.area} onChange={(event) => updateField("area", event.target.value)} placeholder="e.g. Bashundhara R/A" className={inputClass} />
+                    <div className="relative">
+                      <select
+                        required={!form.area}
+                        value={selectedAreaOption}
+                        onChange={(event) => {
+                          const value = event.target.value;
+
+                          if (value === "Bashundhara R/A") {
+                            updateField("area", "Bashundhara R/A");
+                          } else if (value === "Other") {
+                            updateField("area", "");
+                          }
+                        }}
+                        className={`${inputClass} appearance-none pr-10`}
+                      >
+                        <option value="" disabled>
+                          Select area
+                        </option>
+
+                        <option value="Bashundhara R/A">Bashundhara R/A</option>
+
+                        <option value="Other">Other / Add new area</option>
+                      </select>
+
+                      <ChevronDown className="pointer-events-none absolute right-4 top-6 h-4 w-4 text-text-muted" />
+                    </div>
+
+                    {selectedAreaOption === "Other" && <input required value={form.area} onChange={(event) => updateField("area", event.target.value)} placeholder="Enter your area" className={inputClass} />}
                   </Field>
                 </div>
               </div>
@@ -1308,7 +1273,6 @@ export default function PostToLetPage() {
                     <div>
                       {photos.length}/{MAX_PHOTOS} photos
                     </div>
-
                     <div>
                       {videos.length}/{MAX_VIDEOS} videos
                     </div>
@@ -1316,7 +1280,6 @@ export default function PostToLetPage() {
                 </div>
 
                 <div className="mt-5 grid w-full grid-cols-2 gap-8">
-                  {/* Photos column */}
                   <div className="min-w-0">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <span className="text-sm font-bold text-text-primary">Photos</span>
@@ -1351,7 +1314,6 @@ export default function PostToLetPage() {
                     )}
                   </div>
 
-                  {/* Videos column */}
                   <div className="min-w-0">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <span className="text-sm font-bold text-text-primary">Videos</span>
@@ -1380,7 +1342,6 @@ export default function PostToLetPage() {
                       <label className="mt-3 flex min-h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong bg-background px-3 text-center transition hover:border-hover-border hover:bg-hover-background">
                         <div className="flex items-center gap-2">
                           <Video className="h-6 w-6 text-text-secondary" strokeWidth={1.8} />
-
                           <Play className="h-4 w-4 text-text-secondary" strokeWidth={1.8} />
                         </div>
 
