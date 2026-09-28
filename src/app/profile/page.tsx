@@ -1,11 +1,8 @@
 import { redirect } from "next/navigation";
-
 import Link from "next/link";
-
 import { ArrowRight, CheckCircle2, Home, LogOut, ShieldCheck, UserRound, XCircle } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
-
 import { createClient } from "@/lib/supabase/server";
 
 type Listing = {
@@ -376,10 +373,6 @@ export default async function ProfilePage() {
                                 </button>
                               </form>
                             )}
-
-                            <Link href={`/profile/listings/${listing.id}/edit`} className="inline-flex h-10 items-center rounded-lg border border-border px-4 text-sm font-bold text-text-primary transition-colors hover:border-hover-border hover:bg-hover-background hover:text-hover-text">
-                              Edit
-                            </Link>
 
                             <form action={removeListing}>
                               <input type="hidden" name="listingId" value={listing.id} />
