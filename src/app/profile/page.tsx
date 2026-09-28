@@ -1,9 +1,64 @@
 import { redirect } from "next/navigation";
+
 import Link from "next/link";
-import { ArrowRight, LogOut, ShieldCheck, UserRound } from "lucide-react";
+
+import { ArrowRight, Home, LogOut, ShieldCheck, UserRound } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
+
 import { createClient } from "@/lib/supabase/server";
+
+type Listing = {
+  id: string;
+  title: string;
+  listing_type: string;
+  monthly_rent: number | null;
+  publication_status: string | null;
+  rental_lifecycle: string | null;
+  created_at: string;
+};
+
+function formatListingType(value: string) {
+  const labels: Record<string, string> = {
+    apartment: "Apartment",
+    room: "Room",
+    hostel_seat: "Seat",
+    garage: "Garage",
+  };
+
+  return labels[value] ?? value;
+}
+
+function formatStatus(value: string | null) {
+  const labels: Record<string, string> = {
+    pending_review: "Pending review",
+    published: "Published",
+    rejected: "Rejected",
+    draft: "Draft",
+  };
+
+  return value ? (labels[value] ?? value) : "Unknown";
+}
+
+function formatRent(value: number | null) {
+  if (value === null) {
+    return "Rent not specified";
+  }
+
+  return `৳${new Intl.NumberFormat("en-BD").format(value)} / month`;
+}
+
+function getStatusClass(value: string | null) {
+  if (value === "published") {
+    return "border-brand-green/20 bg-brand-green/5 text-brand-green";
+  }
+
+  if (value === "rejected") {
+    return "border-brand-red/20 bg-brand-red/5 text-brand-red";
+  }
+
+  return "border-border bg-background text-text-secondary";
+}
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -21,6 +76,28 @@ export default async function ProfilePage() {
   if (adminError) {
     console.error("PROFILE ADMIN CHECK ERROR:", adminError);
   }
+
+  const { data: listings, error: listingsError } = await supabase
+    .from("listings")
+    .select(
+      `
+        id,
+        title,
+        listing_type,
+        monthly_rent,
+        publication_status,
+        rental_lifecycle,
+        created_at
+      `,
+    )
+    .eq("created_by", user.id)
+    .order("created_at", { ascending: false });
+
+  if (listingsError) {
+    console.error("PROFILE LISTINGS ERROR:", listingsError);
+  }
+
+  const userListings: Listing[] = listings ?? [];
 
   const metadata = user.user_metadata ?? {};
 
@@ -52,44 +129,108 @@ export default async function ProfilePage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          <section className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
-            <div className="flex items-center gap-5 border-b border-border pb-7">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={displayName} className="h-20 w-20 rounded-full border border-border object-cover" />
+          <div className="space-y-6">
+            {/* PROFILE */}
+            <section className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
+              <div className="flex items-center gap-5 border-b border-border pb-7">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={displayName} className="h-20 w-20 rounded-full border border-border object-cover" />
+                ) : (
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full border border-border bg-background">
+                    <UserRound className="h-8 w-8 text-brand-green" strokeWidth={1.7} />
+                  </div>
+                )}
+
+                <div className="min-w-0">
+                  <h2 className="truncate text-2xl font-extrabold">{displayName}</h2>
+
+                  <p className="mt-1 truncate text-sm text-text-secondary">{user.email}</p>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <div className="border-b border-border py-5">
+                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-muted">Name</p>
+
+                  <p className="mt-1 text-sm font-semibold text-text-primary">{displayName}</p>
+                </div>
+
+                <div className="border-b border-border py-5">
+                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-muted">Email</p>
+
+                  <p className="mt-1 break-all text-sm font-semibold text-text-primary">{user.email ?? "Not available"}</p>
+                </div>
+
+                <div className="py-5">
+                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-muted">Account</p>
+
+                  <p className="mt-1 text-sm font-semibold text-text-primary">{isAdmin ? "User & Administrator" : "User"}</p>
+                </div>
+              </div>
+            </section>
+
+            {/* MY LISTINGS */}
+            <section className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
+              <div className="flex items-start justify-between gap-4 border-b border-border pb-6">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-brand-green">Your activity</p>
+
+                  <h2 className="mt-1 text-xl font-extrabold text-text-primary">My listings</h2>
+
+                  <p className="mt-2 text-sm leading-6 text-text-secondary">View the properties you have posted on Virtual To-let.</p>
+                </div>
+
+                <Link href="/post-to-let" className="hidden shrink-0 items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-bold text-text-primary transition-colors hover:border-hover-border hover:bg-hover-background hover:text-hover-text sm:flex">
+                  Post a TO-LET
+                  <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
+                </Link>
+              </div>
+
+              {userListings.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Home className="mx-auto h-9 w-9 text-text-muted" strokeWidth={1.5} />
+
+                  <h3 className="mt-4 text-lg font-bold text-text-primary">No listings yet</h3>
+
+                  <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text-secondary">You have not posted any listings yet.</p>
+
+                  <Link href="/post-to-let" className="mt-6 inline-flex h-11 items-center gap-2 rounded-lg bg-text px-5 text-sm font-bold text-background transition-opacity hover:opacity-85">
+                    Post a TO-LET
+                    <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
+                  </Link>
+                </div>
               ) : (
-                <div className="flex h-20 w-20 items-center justify-center rounded-full border border-border bg-background">
-                  <UserRound className="h-8 w-8 text-brand-green" strokeWidth={1.7} />
+                <div className="divide-y divide-border">
+                  {userListings.map((listing) => (
+                    <Link key={listing.id} href={`/rentals/${listing.id}`} className="group block py-5 first:pt-6 last:pb-0">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-md border border-border bg-background px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-text-muted">{formatListingType(listing.listing_type)}</span>
+
+                            <span className={`rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ${getStatusClass(listing.publication_status)}`}>{formatStatus(listing.publication_status)}</span>
+                          </div>
+
+                          <h3 className="mt-3 truncate text-base font-bold text-text-primary transition-colors group-hover:text-hover-text">{listing.title}</h3>
+
+                          <p className="mt-1 text-sm font-medium text-text-secondary">{formatRent(listing.monthly_rent)}</p>
+                        </div>
+
+                        <ArrowRight className="mt-5 h-5 w-5 shrink-0 text-text-muted transition-transform group-hover:translate-x-1 group-hover:text-hover-text" strokeWidth={1.8} />
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               )}
 
-              <div className="min-w-0">
-                <h2 className="truncate text-2xl font-extrabold">{displayName}</h2>
+              <Link href="/post-to-let" className="mt-6 flex h-11 items-center justify-center gap-2 rounded-lg border border-border text-sm font-bold text-text-primary transition-colors hover:border-hover-border hover:bg-hover-background hover:text-hover-text sm:hidden">
+                Post a TO-LET
+                <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
+              </Link>
+            </section>
+          </div>
 
-                <p className="mt-1 truncate text-sm text-text-secondary">{user.email}</p>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <div className="border-b border-border py-5">
-                <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-muted">Name</p>
-
-                <p className="mt-1 text-sm font-semibold text-text-primary">{displayName}</p>
-              </div>
-
-              <div className="border-b border-border py-5">
-                <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-muted">Email</p>
-
-                <p className="mt-1 break-all text-sm font-semibold text-text-primary">{user.email ?? "Not available"}</p>
-              </div>
-
-              <div className="py-5">
-                <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-muted">Account</p>
-
-                <p className="mt-1 text-sm font-semibold text-text-primary">{isAdmin ? "User & Administrator" : "User"}</p>
-              </div>
-            </div>
-          </section>
-
+          {/* SIDEBAR */}
           <aside className="space-y-4">
             {isAdmin && (
               <section className="rounded-2xl border border-border bg-surface p-6">
