@@ -1,17 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
 import { useRouter } from "next/navigation";
-
 import { Check, ChevronDown, ImagePlus, Play, ShieldCheck, Video, X } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
-
 import { createClient } from "@/lib/supabase/client";
 
 type PropertyType = "Apartment" | "Room" | "Seat" | "Garage";
-
 type PostRole = "owner" | "community";
 
 type ListingMedia = {
@@ -119,15 +115,11 @@ const inputClass = "mt-2 h-12 w-full rounded-lg border border-border bg-backgrou
 const textareaClass = "mt-2 min-h-28 w-full resize-y rounded-lg border border-border bg-background px-4 py-3 text-sm font-medium text-text-primary outline-none transition placeholder:text-text-muted focus:border-brand-green focus:ring-2 focus:ring-brand-green/10";
 
 const MAX_PHOTOS = 10;
-
 const MAX_VIDEOS = 2;
-
 const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
-
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
 
 const allowedPhotoTypes = ["image/jpeg", "image/png", "image/webp"];
-
 const allowedVideoTypes = ["video/mp4", "video/webm", "video/quicktime"];
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -181,17 +173,11 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
 
 export default function PostToLetPage() {
   const router = useRouter();
-
   const [checkingAuth, setCheckingAuth] = useState(true);
-
   const [form, setForm] = useState<ListingForm>(initialForm);
-
   const [postRole, setPostRole] = useState<PostRole>("owner");
-
   const [reviewing, setReviewing] = useState(false);
-
   const [uploadingMedia, setUploadingMedia] = useState(false);
-
   const [submitting, setSubmitting] = useState(false);
 
   /**
@@ -263,13 +249,11 @@ export default function PostToLetPage() {
 
   function isValidBangladeshPhone(phone: string) {
     const normalized = phone.replace(/[\s-]/g, "");
-
     return /^(01[3-9]\d{8}|\+8801[3-9]\d{8})$/.test(normalized);
   }
 
   async function handleMediaUpload(event: React.ChangeEvent<HTMLInputElement>, mediaType: "photo" | "video") {
     const files = Array.from(event.target.files ?? []);
-
     event.target.value = "";
 
     if (!files.length) {
@@ -328,7 +312,6 @@ export default function PostToLetPage() {
         const extension = file.name.split(".").pop()?.toLowerCase() || (mediaType === "photo" ? "jpg" : "mp4");
 
         const fileId = crypto.randomUUID();
-
         const filePath = `${user.id}/${mediaType}/${fileId}.${extension}`;
 
         const { error: uploadError } = await supabase.storage.from("listing-media").upload(filePath, file, {
@@ -576,6 +559,7 @@ export default function PostToLetPage() {
       // owner or community.
       //
       // The database trigger validates and assigns owner_profile_id.
+
       const { data: listing, error: listingError } = await supabase
         .from("listings")
         .insert({
@@ -687,11 +671,9 @@ export default function PostToLetPage() {
       window.alert("Your listing has been submitted for verification.");
 
       router.replace("/");
-
       router.refresh();
     } catch (error) {
       console.error("LISTING SUBMISSION ERROR:", error);
-
       setSubmitting(false);
 
       window.alert(error instanceof Error ? error.message : "Failed to submit your listing. Please try again.");
@@ -1196,8 +1178,8 @@ export default function PostToLetPage() {
                 )}
 
                 <div className="grid gap-6 sm:grid-cols-2">
-                  <Field label="House" optional={form.propertyType === "Garage"}>
-                    <input required={form.propertyType !== "Garage"} value={form.house} onChange={(event) => updateField("house", event.target.value)} placeholder="e.g. 151" className={inputClass} />
+                  <Field label="House" optional>
+                    <input value={form.house} onChange={(event) => updateField("house", event.target.value)} placeholder="e.g. 151" className={inputClass} />
                   </Field>
 
                   <Field label="Road">
