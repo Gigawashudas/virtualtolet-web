@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+
 import Link from "next/link";
+
 import { usePathname } from "next/navigation";
-import { Bell, ChevronRight, Ellipsis, Moon, Sun } from "lucide-react";
+
+import { ChevronRight, Ellipsis, Moon, Sun } from "lucide-react";
 
 import VirtualToletLogo from "@/components/VirtualToletLogo";
+
 import { createClient } from "@/lib/supabase/client";
 
 type ProfileData = {
@@ -23,14 +27,12 @@ function ThemeToggle() {
     const nextIsDark = !isDark;
 
     document.documentElement.classList.toggle("dark", nextIsDark);
-
     window.localStorage.setItem("virtualtolet-theme", nextIsDark ? "dark" : "light");
   }
 
   return (
     <button type="button" aria-label="Toggle theme" title="Toggle theme" onClick={toggleTheme} className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
       <Moon className="h-5 w-5 dark:hidden" strokeWidth={1.8} />
-
       <Sun className="hidden h-5 w-5 dark:block" strokeWidth={1.8} />
     </button>
   );
@@ -163,7 +165,6 @@ export default function Navbar() {
       }
 
       const containerWidth = container.getBoundingClientRect().width;
-
       const gap = 4;
       const moreButtonWidth = 44;
 
@@ -336,22 +337,13 @@ export default function Navbar() {
                   </Link>
 
                   {/* MOBILE — THEME */}
-                  <div className="border-t border-border my-1 sm:hidden" />
+                  <div className="my-1 border-t border-border sm:hidden" />
 
                   <div className="flex items-center justify-between rounded-md px-3 sm:hidden">
                     <span className="text-sm font-medium text-text-primary">Theme</span>
 
                     <ThemeToggle />
                   </div>
-
-                  {/* MOBILE — NOTIFICATIONS */}
-                  <button type="button" aria-label="Notifications" className="flex min-h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:hidden">
-                    <Bell className="h-5 w-5" strokeWidth={1.8} />
-
-                    <span>Notifications</span>
-
-                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-brand-red" />
-                  </button>
 
                   {/* MOBILE — PROFILE / SIGN IN */}
                   {isAuthenticated ? (
@@ -407,12 +399,6 @@ export default function Navbar() {
           </Link>
 
           <ThemeToggle />
-
-          <button type="button" aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
-            <Bell className="h-5 w-5" strokeWidth={1.8} />
-
-            <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-brand-red" />
-          </button>
 
           {isAuthenticated ? (
             <Link href="/profile" aria-label="Profile" className="group flex h-11 items-center gap-2 rounded-lg px-1.5 transition-colors">
