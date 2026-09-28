@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { redirect, notFound } from "next/navigation";
-
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -17,7 +16,7 @@ type Property = {
 type PropertyUnit = {
   id: string;
   unit_label: string | null;
-  floor: number | null;
+  floor: string | null;
   bedrooms: number | null;
   bathrooms: number | null;
   size_sqft: number | null;
@@ -44,7 +43,7 @@ type ListingContact = {
 
 type Listing = {
   id: string;
-  title: string;
+  title: string | null;
   listing_type: string | null;
   monthly_rent: number | null;
   service_charge: number | null;
@@ -52,21 +51,23 @@ type Listing = {
   security_deposit: number | null;
   description: string | null;
   details: Record<string, unknown> | null;
+  property_id?: string | null;
+  unit_id?: string | null;
   properties: Property | Property[] | null;
   property_units: PropertyUnit | PropertyUnit[] | null;
   listing_preferences: ListingPreference | ListingPreference[] | null;
-  listing_contacts: ListingContact[] | null;
+  listing_contacts: ListingContact | ListingContact[] | null;
 };
 
-function firstRelation<T>(value: T | T[] | null | undefined): T | null {
-  if (!value) {
+function firstRelation<T>(relation: T | T[] | null | undefined): T | null {
+  if (!relation) {
     return null;
   }
 
-  return Array.isArray(value) ? (value[0] ?? null) : value;
+  return Array.isArray(relation) ? (relation[0] ?? null) : relation;
 }
 
-function getNestedValue(object: Record<string, unknown> | null | undefined, path: string) {
+function getNestedValue(object: Record<string, unknown> | null | undefined, path: string): unknown {
   if (!object) {
     return undefined;
   }
@@ -80,76 +81,100 @@ function getNestedValue(object: Record<string, unknown> | null | undefined, path
   }, object);
 }
 
-function stringValue(object: Record<string, unknown> | null | undefined, path: string) {
-  const value = getNestedValue(object, path);
-
-  return typeof value === "string" ? value : "";
-}
-
-function numberValue(object: Record<string, unknown> | null | undefined, path: string) {
-  const value = getNestedValue(object, path);
-
-  if (typeof value === "number") {
+function stringValue(value: unknown): string {
+  if (typeof value === "string") {
     return value;
   }
 
-  if (typeof value === "string" && value.trim()) {
+  if (typeof value === "number") {
+    return String(value);
+  }
+
+  return "";
+}
+
+function numberValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
     const parsed = Number(value);
 
-    return Number.isFinite(parsed) ? parsed : null;
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
   }
 
   return null;
 }
 
-function booleanValue(object: Record<string, unknown> | null | undefined, path: string) {
-  const value = getNestedValue(object, path);
-
+function booleanValue(value: unknown): boolean {
   if (typeof value === "boolean") {
     return value;
   }
 
-  return null;
+  if (typeof value === "string") {
+    return value === "true";
+  }
+
+  return false;
 }
 
-function inputValue(value: string | number | null | undefined) {
-  return value === null || value === undefined ? "" : String(value);
+function inputValue(value: unknown): string {
+  return stringValue(value);
 }
 
-function inputClass() {
-  return "mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-text";
+const inputClass = "w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500 focus:ring-2 focus:ring-neutral-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white dark:focus:border-neutral-500 dark:focus:ring-neutral-800";
+
+function getListingTypeLabel(listingType: string | null): string {
+  switch (listingType) {
+    case "apartment":
+      return "Apartment";
+    case "room":
+      return "Room";
+    case "hostel_seat":
+      return "Seat";
+    case "garage":
+      return "Garage";
+    default:
+      return listingType || "Property";
+  }
 }
 
-function getListingTypeLabel(value: string | null) {
-  const labels: Record<string, string> = {
-    apartment: "Apartment",
-    room: "Room",
-    hostel_seat: "Seat",
-    garage: "Garage",
-  };
-
-  return value ? (labels[value] ?? value) : "Listing";
-}
-
-function getFormSnapshot(details: Record<string, unknown> | null) {
+function getFormSnapshot(details: Record<string, unknown> | null): Record<string, unknown> {
   const snapshot = getNestedValue(details, "form_snapshot");
 
   if (snapshot && typeof snapshot === "object" && !Array.isArray(snapshot)) {
     return snapshot as Record<string, unknown>;
   }
 
-  return null;
+  return {};
 }
 
 export default async function EditListingPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> }) {
   const { id } = await params;
-  const query = await searchParams;
+  const { error: queryError } = await searchParams;
 
   const supabase = await createClient();
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
+
+  /*
+   * DEBUG LOGGING
+   *
+   * These logs will tell us exactly what the Next.js server
+   * sees when you open the edit page.
+   */
+  console.log("========================================");
+  console.log("EDIT LISTING DEBUG");
+  console.log("EDIT PAGE LISTING ID:", id);
+  console.log("EDIT PAGE AUTH USER:", user?.id ?? null);
+  console.log("EDIT PAGE AUTH ERROR:", authError);
+  console.log("========================================");
 
   if (!user) {
     redirect(`/sign-in?redirect=/profile/listings/${id}/edit`);
@@ -159,84 +184,103 @@ export default async function EditListingPage({ params, searchParams }: { params
     .from("listings")
     .select(
       `
+      id,
+      title,
+      listing_type,
+      monthly_rent,
+      service_charge,
+      available_from,
+      security_deposit,
+      description,
+      details,
+      property_id,
+      unit_id,
+      properties (
         id,
-        title,
-        listing_type,
-        monthly_rent,
-        service_charge,
-        available_from,
-        security_deposit,
-        description,
-        details,
-        properties (
-          id,
-          area,
-          house_number,
-          address_line,
-          description
-        ),
-        property_units (
-          id,
-          unit_label,
-          floor,
-          bedrooms,
-          bathrooms,
-          size_sqft,
-          description
-        ),
-        listing_preferences (
-          id,
-          tenant_preference,
-          students_allowed,
-          working_professionals_allowed,
-          male_bachelors_allowed,
-          female_bachelors_allowed,
-          family_allowed
-        ),
-        listing_contacts (
-          id,
-          contact_type,
-          contact_value,
-          label,
-          is_primary
-        )
-      `,
+        area,
+        house_number,
+        address_line,
+        description
+      ),
+      property_units (
+        id,
+        unit_label,
+        floor,
+        bedrooms,
+        bathrooms,
+        size_sqft,
+        description
+      ),
+      listing_preferences (
+        id,
+        tenant_preference,
+        students_allowed,
+        working_professionals_allowed,
+        male_bachelors_allowed,
+        female_bachelors_allowed,
+        family_allowed
+      ),
+      listing_contacts (
+        id,
+        contact_type,
+        contact_value,
+        label,
+        is_primary
+      )
+    `,
     )
     .eq("id", id)
     .eq("created_by", user.id)
     .maybeSingle();
 
+  /*
+   * MORE DEBUG INFORMATION
+   */
+  console.log("EDIT LISTING QUERY ERROR:", error);
+  console.log("EDIT LISTING FOUND:", listing ? listing.id : null);
+  console.log("EDIT LISTING EXPECTED OWNER:", user.id);
+
   if (error) {
-    console.error("EDIT LISTING LOAD ERROR:", error);
+    console.error("EDIT LISTING LOAD ERROR:", JSON.stringify(error, null, 2));
+
     notFound();
   }
 
   if (!listing) {
+    console.error("EDIT LISTING NOT FOUND FOR CURRENT USER");
+    console.error("Listing ID:", id);
+    console.error("Current user ID:", user.id);
+
     notFound();
   }
 
   const typedListing = listing as Listing;
 
   const property = firstRelation(typedListing.properties);
+
   const unit = firstRelation(typedListing.property_units);
+
   const preference = firstRelation(typedListing.listing_preferences);
 
-  const primaryContact = typedListing.listing_contacts?.find((contact) => contact.contact_type === "phone" && contact.is_primary) ?? typedListing.listing_contacts?.find((contact) => contact.contact_type === "phone") ?? null;
+  const contacts = Array.isArray(typedListing.listing_contacts) ? typedListing.listing_contacts : typedListing.listing_contacts ? [typedListing.listing_contacts] : [];
 
-  const details = typedListing.details ?? {};
+  const primaryPhone = contacts.find((contact) => contact.contact_type === "phone" && contact.is_primary) ?? contacts.find((contact) => contact.contact_type === "phone") ?? contacts[0] ?? null;
+
+  const details = typedListing.details && typeof typedListing.details === "object" ? typedListing.details : {};
+
   const formSnapshot = getFormSnapshot(details);
 
-  const propertyType = stringValue(formSnapshot, "propertyType") || stringValue(details, "property.property_type") || getListingTypeLabel(typedListing.listing_type);
+  const propertyType = getListingTypeLabel(typedListing.listing_type);
 
-  const suitableFor = stringValue(formSnapshot, "suitableFor") || stringValue(details, "occupancy.suitable_for") || preference?.tenant_preference || "";
+  const suitableFor = preference?.tenant_preference || stringValue(getNestedValue(formSnapshot, "suitableFor"));
 
-  const gender = stringValue(formSnapshot, "gender") || stringValue(details, "occupancy.gender") || "";
+  const gender = stringValue(getNestedValue(formSnapshot, "gender"));
 
-  const vehicleType = stringValue(formSnapshot, "vehicleType") || stringValue(details, "garage.vehicle_type") || "";
+  const vehicleType = stringValue(getNestedValue(formSnapshot, "vehicleType"));
 
-  const garageType = stringValue(formSnapshot, "garageType") || stringValue(details, "garage.garage_type") || "";
+  const garageType = stringValue(getNestedValue(formSnapshot, "garageType"));
 
-  const handleUpdate = async (formData: FormData) => {
+  async function handleUpdate(formData: FormData) {
     "use server";
 
     const supabase = await createClient();
@@ -246,162 +290,178 @@ export default async function EditListingPage({ params, searchParams }: { params
     } = await supabase.auth.getUser();
 
     if (!user) {
-      redirect("/sign-in");
+      redirect(`/sign-in?redirect=/profile/listings/${id}/edit`);
     }
 
     const title = String(formData.get("title") ?? "").trim();
+
     const description = String(formData.get("description") ?? "").trim();
 
     const area = String(formData.get("area") ?? "").trim();
+
     const houseNumber = String(formData.get("house_number") ?? "").trim();
 
     const addressLine = String(formData.get("address_line") ?? "").trim();
 
-    const monthlyRentRaw = String(formData.get("monthly_rent") ?? "").trim();
+    const monthlyRentValue = String(formData.get("monthly_rent") ?? "").trim();
 
-    const serviceChargeRaw = String(formData.get("service_charge") ?? "").trim();
+    const serviceChargeValue = String(formData.get("service_charge") ?? "").trim();
 
-    const securityDepositRaw = String(formData.get("security_deposit") ?? "").trim();
+    const securityDepositValue = String(formData.get("security_deposit") ?? "").trim();
 
     const availableFrom = String(formData.get("available_from") ?? "").trim();
 
-    const bedroomsRaw = String(formData.get("bedrooms") ?? "").trim();
+    const bedroomsValue = String(formData.get("bedrooms") ?? "").trim();
 
-    const bathroomsRaw = String(formData.get("bathrooms") ?? "").trim();
+    const bathroomsValue = String(formData.get("bathrooms") ?? "").trim();
 
-    const sizeRaw = String(formData.get("size_sqft") ?? "").trim();
+    const sizeSqftValue = String(formData.get("size_sqft") ?? "").trim();
 
-    const floorRaw = String(formData.get("floor") ?? "").trim();
+    const floor = String(formData.get("floor") ?? "").trim();
 
     const contactNumber = String(formData.get("contact_number") ?? "").trim();
 
+    const monthlyRent = Number(monthlyRentValue);
+
+    const serviceCharge = serviceChargeValue === "" ? null : Number(serviceChargeValue);
+
+    const securityDeposit = securityDepositValue === "" ? null : Number(securityDepositValue);
+
+    const bedrooms = bedroomsValue === "" ? null : Number(bedroomsValue);
+
+    const bathrooms = bathroomsValue === "" ? null : Number(bathroomsValue);
+
+    const sizeSqft = sizeSqftValue === "" ? null : Number(sizeSqftValue);
+
     if (!title) {
-      redirect(`/profile/listings/${id}/edit?error=title-required`);
+      redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent("Title is required.")}`);
     }
 
     if (!area) {
-      redirect(`/profile/listings/${id}/edit?error=area-required`);
+      redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent("Area is required.")}`);
     }
 
-    const monthlyRent = monthlyRentRaw ? Number(monthlyRentRaw) : null;
-
-    const serviceCharge = serviceChargeRaw ? Number(serviceChargeRaw) : null;
-
-    const securityDeposit = securityDepositRaw ? Number(securityDepositRaw) : null;
-
-    const bedrooms = bedroomsRaw ? Number(bedroomsRaw) : null;
-
-    const bathrooms = bathroomsRaw ? Number(bathroomsRaw) : null;
-
-    const sizeSqft = sizeRaw ? Number(sizeRaw) : null;
-
-    const floor = floorRaw ? Number(floorRaw) : null;
-
-    if ((monthlyRent !== null && !Number.isFinite(monthlyRent)) || (serviceCharge !== null && !Number.isFinite(serviceCharge)) || (securityDeposit !== null && !Number.isFinite(securityDeposit)) || (bedrooms !== null && !Number.isFinite(bedrooms)) || (bathrooms !== null && !Number.isFinite(bathrooms)) || (sizeSqft !== null && !Number.isFinite(sizeSqft)) || (floor !== null && !Number.isFinite(floor))) {
-      redirect(`/profile/listings/${id}/edit?error=invalid-number`);
+    if (!Number.isFinite(monthlyRent) || monthlyRent < 0) {
+      redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent("Please enter a valid monthly rent.")}`);
     }
 
-    const { data: ownedListing, error: ownershipError } = await supabase
+    if (serviceCharge !== null && (!Number.isFinite(serviceCharge) || serviceCharge < 0)) {
+      redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent("Please enter a valid service charge.")}`);
+    }
+
+    if (securityDeposit !== null && (!Number.isFinite(securityDeposit) || securityDeposit < 0)) {
+      redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent("Please enter a valid security deposit.")}`);
+    }
+
+    if (bedrooms !== null && (!Number.isFinite(bedrooms) || bedrooms < 0)) {
+      redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent("Please enter a valid bedroom count.")}`);
+    }
+
+    if (bathrooms !== null && (!Number.isFinite(bathrooms) || bathrooms < 0)) {
+      redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent("Please enter a valid bathroom count.")}`);
+    }
+
+    if (sizeSqft !== null && (!Number.isFinite(sizeSqft) || sizeSqft < 0)) {
+      redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent("Please enter a valid property size.")}`);
+    }
+
+    const { data: existingListing, error: existingListingError } = await supabase
       .from("listings")
       .select(
         `
-            id,
-            property_id,
-            unit_id,
-            listing_type,
-            details,
-            properties (
-              id
-            ),
-            property_units (
-              id
-            )
-          `,
+        id,
+        property_id,
+        unit_id,
+        details
+      `,
       )
       .eq("id", id)
       .eq("created_by", user.id)
       .maybeSingle();
 
-    if (ownershipError || !ownedListing) {
-      redirect(`/profile/listings/${id}/edit?error=listing-not-found`);
+    if (existingListingError) {
+      console.error("EDIT UPDATE LOAD ERROR:", existingListingError);
+
+      redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent(existingListingError.message)}`);
     }
 
-    const ownedProperty = firstRelation(ownedListing.properties as { id: string } | { id: string }[] | null);
+    if (!existingListing) {
+      redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent("Listing not found or you do not own this listing.")}`);
+    }
 
-    const ownedUnit = firstRelation(ownedListing.property_units as { id: string } | { id: string }[] | null);
-
-    const currentDetails = ownedListing.details && typeof ownedListing.details === "object" && !Array.isArray(ownedListing.details) ? (ownedListing.details as Record<string, unknown>) : {};
+    const currentDetails = existingListing.details && typeof existingListing.details === "object" ? (existingListing.details as Record<string, unknown>) : {};
 
     const nextDetails: Record<string, unknown> = {
       ...currentDetails,
       property: {
-        ...((currentDetails.property && typeof currentDetails.property === "object" && !Array.isArray(currentDetails.property) ? currentDetails.property : {}) as Record<string, unknown>),
+        ...(currentDetails.property && typeof currentDetails.property === "object" ? currentDetails.property : {}),
         bedrooms,
         bathrooms,
         size_sqft: sizeSqft,
         available_from: availableFrom || null,
       },
       costs: {
-        ...((currentDetails.costs && typeof currentDetails.costs === "object" && !Array.isArray(currentDetails.costs) ? currentDetails.costs : {}) as Record<string, unknown>),
+        ...(currentDetails.costs && typeof currentDetails.costs === "object" ? currentDetails.costs : {}),
         monthly_rent: monthlyRent,
         service_charge: serviceCharge,
         security_deposit: securityDeposit,
       },
-    };
-
-    if (formSnapshot) {
-      nextDetails.form_snapshot = {
-        ...formSnapshot,
+      form_snapshot: {
+        ...(currentDetails.form_snapshot && typeof currentDetails.form_snapshot === "object" ? currentDetails.form_snapshot : {}),
         title,
         description,
         area,
         house: houseNumber,
-        road: String(formData.get("road") ?? "").trim(),
-        block: String(formData.get("block") ?? "").trim(),
-        flatNumber: String(formData.get("flat_number") ?? "").trim(),
-        floor: floorRaw,
-        bedrooms: bedroomsRaw,
-        bathrooms: bathroomsRaw,
-        size: sizeRaw,
-        rent: monthlyRentRaw,
-        serviceCharge: serviceChargeRaw,
-        securityDeposit: securityDepositRaw,
+        road: stringValue(getNestedValue(formSnapshot, "road")),
+        block: stringValue(getNestedValue(formSnapshot, "block")),
+        flatNumber: stringValue(getNestedValue(formSnapshot, "flatNumber")),
+        floor,
+        bedrooms: bedrooms === null ? "" : String(bedrooms),
+        bathrooms: bathrooms === null ? "" : String(bathrooms),
+        size: sizeSqft === null ? "" : String(sizeSqft),
+        rent: String(monthlyRent),
+        serviceCharge: serviceCharge === null ? "" : String(serviceCharge),
+        securityDeposit: securityDeposit === null ? "" : String(securityDeposit),
         availableFrom,
         contactNumber,
-      };
+      },
+    };
+
+    if (existingListing.property_id) {
+      const { error: propertyError } = await supabase
+        .from("properties")
+        .update({
+          title,
+          description: description || null,
+          address_line: addressLine || null,
+          area,
+          house_number: houseNumber || null,
+        })
+        .eq("id", existingListing.property_id);
+
+      if (propertyError) {
+        console.error("EDIT PROPERTY UPDATE ERROR:", propertyError);
+
+        redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent(propertyError.message)}`);
+      }
     }
 
-    const { error: propertyError } = await supabase
-      .from("properties")
-      .update({
-        title,
-        description: description || null,
-        address_line: addressLine || null,
-        area,
-        house_number: houseNumber || null,
-      })
-      .eq("id", ownedProperty?.id ?? ownedListing.property_id);
-
-    if (propertyError) {
-      console.error("EDIT PROPERTY ERROR:", propertyError);
-      redirect(`/profile/listings/${id}/edit?error=property-update`);
-    }
-
-    if (ownedUnit?.id ?? ownedListing.unit_id) {
+    if (existingListing.unit_id) {
       const { error: unitError } = await supabase
         .from("property_units")
         .update({
-          floor,
+          floor: floor || null,
           bedrooms,
           bathrooms,
           size_sqft: sizeSqft,
           description: description || null,
         })
-        .eq("id", ownedUnit?.id ?? ownedListing.unit_id);
+        .eq("id", existingListing.unit_id);
 
       if (unitError) {
-        console.error("EDIT UNIT ERROR:", unitError);
-        redirect(`/profile/listings/${id}/edit?error=unit-update`);
+        console.error("EDIT UNIT UPDATE ERROR:", unitError);
+
+        redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent(unitError.message)}`);
       }
     }
 
@@ -420,233 +480,264 @@ export default async function EditListingPage({ params, searchParams }: { params
       .eq("created_by", user.id);
 
     if (listingError) {
-      console.error("EDIT LISTING ERROR:", listingError);
-      redirect(`/profile/listings/${id}/edit?error=listing-update`);
+      console.error("EDIT LISTING UPDATE ERROR:", listingError);
+
+      redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent(listingError.message)}`);
     }
 
-    if (primaryContact) {
-      const { error: contactError } = await supabase
-        .from("listing_contacts")
-        .update({
-          contact_value: contactNumber || null,
-        })
-        .eq("id", primaryContact.id);
+    if (contactNumber) {
+      const existingPhone = await supabase.from("listing_contacts").select("id").eq("listing_id", id).eq("contact_type", "phone").eq("is_primary", true).maybeSingle();
 
-      if (contactError) {
-        console.error("EDIT CONTACT ERROR:", contactError);
+      if (existingPhone.error) {
+        console.error("EDIT CONTACT LOAD ERROR:", existingPhone.error);
+
+        redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent(existingPhone.error.message)}`);
       }
-    } else if (contactNumber) {
-      const { error: contactInsertError } = await supabase.from("listing_contacts").insert({
-        listing_id: id,
-        contact_type: "phone",
-        contact_value: contactNumber,
-        label: "Primary phone",
-        is_primary: true,
-      });
 
-      if (contactInsertError) {
-        console.error("EDIT CONTACT INSERT ERROR:", contactInsertError);
+      if (existingPhone.data) {
+        const { error: contactError } = await supabase
+          .from("listing_contacts")
+          .update({
+            contact_value: contactNumber,
+            label: "Primary phone",
+            is_primary: true,
+          })
+          .eq("id", existingPhone.data.id);
+
+        if (contactError) {
+          console.error("EDIT CONTACT UPDATE ERROR:", contactError);
+
+          redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent(contactError.message)}`);
+        }
+      } else {
+        const { error: contactInsertError } = await supabase.from("listing_contacts").insert({
+          listing_id: id,
+          contact_type: "phone",
+          contact_value: contactNumber,
+          label: "Primary phone",
+          is_primary: true,
+        });
+
+        if (contactInsertError) {
+          console.error("EDIT CONTACT INSERT ERROR:", contactInsertError);
+
+          redirect(`/profile/listings/${id}/edit?error=${encodeURIComponent(contactInsertError.message)}`);
+        }
       }
     }
 
     redirect(`/profile/listings/${id}`);
-  };
-
-  const errorMessage = query.error === "title-required" ? "Please enter a listing title." : query.error === "area-required" ? "Please enter an area." : query.error === "invalid-number" ? "Please enter valid numbers." : query.error ? "The listing could not be updated. Please try again." : null;
+  }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <>
       <Navbar />
 
-      <div className="mx-auto max-w-[1000px] px-6 py-10 sm:px-8 lg:px-10">
-        <div className="mb-8">
-          <Link href={`/profile/listings/${id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-text-secondary transition-colors hover:text-hover-text">
-            <ArrowLeft className="h-4 w-4" strokeWidth={1.8} />
-            Back to listing
-          </Link>
-        </div>
+      <main className="min-h-screen bg-neutral-50 px-4 py-8 dark:bg-neutral-950">
+        <div className="mx-auto max-w-4xl">
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <div>
+              <Link href={`/profile/listings/${id}`} className="mb-3 inline-flex items-center gap-2 text-sm text-neutral-600 transition hover:text-neutral-950 dark:text-neutral-400 dark:hover:text-white">
+                <ArrowLeft size={16} />
+                Back to listing
+              </Link>
 
-        <div className="mb-8 border-b border-border pb-8">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-brand-green">Edit listing</p>
+              <h1 className="text-2xl font-semibold tracking-tight text-neutral-950 dark:text-white">Edit listing</h1>
 
-          <h1 className="text-3xl font-extrabold tracking-tight text-text-primary sm:text-4xl">Update your listing</h1>
-
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-text-secondary">Update the information tenants see about your property.</p>
-        </div>
-
-        {errorMessage && <div className="mb-6 rounded-lg border border-brand-red/20 bg-brand-red/5 px-4 py-3 text-sm font-semibold text-brand-red">{errorMessage}</div>}
-
-        <form action={handleUpdate}>
-          <div className="rounded-xl border border-border bg-surface">
-            <section className="border-b border-border p-6 sm:p-8">
-              <h2 className="text-lg font-bold text-text-primary">Listing</h2>
-
-              <div className="mt-6 grid gap-6">
-                <label>
-                  <span className="text-sm font-bold text-text-primary">Title</span>
-
-                  <input name="title" required defaultValue={typedListing.title} className={inputClass()} />
-                </label>
-
-                <label>
-                  <span className="text-sm font-bold text-text-primary">Description</span>
-
-                  <textarea name="description" rows={6} defaultValue={typedListing.description ?? ""} className="mt-2 w-full resize-y rounded-md border border-border bg-background px-3 py-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-text" />
-                </label>
-
-                <div className="grid gap-6 sm:grid-cols-2">
-                  <label>
-                    <span className="text-sm font-bold text-text-primary">Property type</span>
-
-                    <input value={propertyType} disabled className={`${inputClass()} cursor-not-allowed opacity-60`} />
-                  </label>
-
-                  <label>
-                    <span className="text-sm font-bold text-text-primary">Available from</span>
-
-                    <input name="available_from" type="date" defaultValue={typedListing.available_from ?? ""} className={inputClass()} />
-                  </label>
-                </div>
-              </div>
-            </section>
-
-            <section className="border-b border-border p-6 sm:p-8">
-              <h2 className="text-lg font-bold text-text-primary">Location</h2>
-
-              <div className="mt-6 grid gap-6 sm:grid-cols-2">
-                <label>
-                  <span className="text-sm font-bold text-text-primary">Area</span>
-
-                  <input name="area" required defaultValue={property?.area ?? ""} className={inputClass()} />
-                </label>
-
-                <label>
-                  <span className="text-sm font-bold text-text-primary">
-                    House
-                    <span className="ml-1 text-xs font-normal text-text-muted">Optional</span>
-                  </span>
-
-                  <input name="house_number" defaultValue={property?.house_number ?? ""} className={inputClass()} />
-                </label>
-
-                <label className="sm:col-span-2">
-                  <span className="text-sm font-bold text-text-primary">Address</span>
-
-                  <input name="address_line" defaultValue={property?.address_line ?? ""} className={inputClass()} />
-                </label>
-
-                <label>
-                  <span className="text-sm font-bold text-text-primary">
-                    Flat
-                    <span className="ml-1 text-xs font-normal text-text-muted">Optional</span>
-                  </span>
-
-                  <input name="flat_number" defaultValue={stringValue(formSnapshot, "flatNumber") || unit?.unit_label || ""} className={inputClass()} />
-                </label>
-
-                <label>
-                  <span className="text-sm font-bold text-text-primary">Floor</span>
-
-                  <input name="floor" type="number" min="0" defaultValue={inputValue(unit?.floor ?? numberValue(formSnapshot, "floor"))} className={inputClass()} />
-                </label>
-
-                <label>
-                  <span className="text-sm font-bold text-text-primary">Road</span>
-
-                  <input name="road" defaultValue={stringValue(formSnapshot, "road")} className={inputClass()} />
-                </label>
-
-                <label>
-                  <span className="text-sm font-bold text-text-primary">Block</span>
-
-                  <input name="block" defaultValue={stringValue(formSnapshot, "block")} className={inputClass()} />
-                </label>
-              </div>
-            </section>
-
-            <section className="border-b border-border p-6 sm:p-8">
-              <h2 className="text-lg font-bold text-text-primary">Property details</h2>
-
-              <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                <label>
-                  <span className="text-sm font-bold text-text-primary">Bedrooms</span>
-
-                  <input name="bedrooms" type="number" min="0" defaultValue={inputValue(unit?.bedrooms ?? numberValue(formSnapshot, "bedrooms"))} className={inputClass()} />
-                </label>
-
-                <label>
-                  <span className="text-sm font-bold text-text-primary">Bathrooms</span>
-
-                  <input name="bathrooms" type="number" min="0" defaultValue={inputValue(unit?.bathrooms ?? numberValue(formSnapshot, "bathrooms"))} className={inputClass()} />
-                </label>
-
-                <label>
-                  <span className="text-sm font-bold text-text-primary">Size (sq ft)</span>
-
-                  <input name="size_sqft" type="number" min="0" defaultValue={inputValue(unit?.size_sqft ?? numberValue(formSnapshot, "size"))} className={inputClass()} />
-                </label>
-              </div>
-            </section>
-
-            <section className="border-b border-border p-6 sm:p-8">
-              <h2 className="text-lg font-bold text-text-primary">Costs</h2>
-
-              <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                <label>
-                  <span className="text-sm font-bold text-text-primary">Monthly rent</span>
-
-                  <input name="monthly_rent" type="number" min="0" defaultValue={inputValue(typedListing.monthly_rent)} className={inputClass()} />
-                </label>
-
-                <label>
-                  <span className="text-sm font-bold text-text-primary">Service charge</span>
-
-                  <input name="service_charge" type="number" min="0" defaultValue={inputValue(typedListing.service_charge)} className={inputClass()} />
-                </label>
-
-                <label>
-                  <span className="text-sm font-bold text-text-primary">Security deposit</span>
-
-                  <input name="security_deposit" type="number" min="0" defaultValue={inputValue(typedListing.security_deposit)} className={inputClass()} />
-                </label>
-              </div>
-            </section>
-
-            <section className="border-b border-border p-6 sm:p-8">
-              <h2 className="text-lg font-bold text-text-primary">Contact</h2>
-
-              <div className="mt-6">
-                <label className="block">
-                  <span className="text-sm font-bold text-text-primary">Contact number</span>
-
-                  <input name="contact_number" type="tel" defaultValue={primaryContact?.contact_value ?? ""} placeholder="01XXXXXXXXX" className={inputClass()} />
-                </label>
-              </div>
-            </section>
-
-            <section className="p-6 sm:p-8">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-bold text-text-primary">Current listing type</p>
-
-                  <p className="mt-1 text-sm text-text-secondary">
-                    {getListingTypeLabel(typedListing.listing_type)}
-                    {suitableFor ? ` · ${suitableFor}` : ""}
-                    {gender ? ` · ${gender}` : ""}
-                    {vehicleType ? ` · ${vehicleType}` : ""}
-                    {garageType ? ` · ${garageType}` : ""}
-                  </p>
-                </div>
-
-                <button type="submit" className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-brand-green px-7 text-sm font-bold text-white transition-opacity hover:opacity-90">
-                  <Save className="h-4 w-4" strokeWidth={1.8} />
-                  Save changes
-                </button>
-              </div>
-            </section>
+              <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">Update your property information.</p>
+            </div>
           </div>
-        </form>
-      </div>
-    </main>
+
+          {queryError ? <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">{queryError}</div> : null}
+
+          <form action={handleUpdate} className="space-y-6">
+            <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+              <h2 className="text-lg font-semibold text-neutral-950 dark:text-white">Listing</h2>
+
+              <div className="mt-5 space-y-5">
+                <div>
+                  <label htmlFor="title" className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                    Title
+                  </label>
+
+                  <input id="title" name="title" defaultValue={inputValue(typedListing.title)} className={inputClass} required />
+                </div>
+
+                <div>
+                  <label htmlFor="description" className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                    Description
+                  </label>
+
+                  <textarea id="description" name="description" defaultValue={inputValue(typedListing.description)} className={`${inputClass} min-h-32 resize-y`} />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">Property type</label>
+
+                  <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">{propertyType}</div>
+                </div>
+
+                {(suitableFor || gender || vehicleType || garageType) && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {suitableFor ? (
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Suitable for</p>
+                        <p className="mt-1 text-sm text-neutral-900 dark:text-white">{suitableFor}</p>
+                      </div>
+                    ) : null}
+
+                    {gender ? (
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Gender</p>
+                        <p className="mt-1 text-sm text-neutral-900 dark:text-white">{gender}</p>
+                      </div>
+                    ) : null}
+
+                    {vehicleType ? (
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Vehicle type</p>
+                        <p className="mt-1 text-sm text-neutral-900 dark:text-white">{vehicleType}</p>
+                      </div>
+                    ) : null}
+
+                    {garageType ? (
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Garage type</p>
+                        <p className="mt-1 text-sm text-neutral-900 dark:text-white">{garageType}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+              <h2 className="text-lg font-semibold text-neutral-950 dark:text-white">Location</h2>
+
+              <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="area" className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                    Area
+                  </label>
+
+                  <input id="area" name="area" defaultValue={inputValue(property?.area || getNestedValue(formSnapshot, "area"))} className={inputClass} required />
+                </div>
+
+                <div>
+                  <label htmlFor="house_number" className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                    House
+                  </label>
+
+                  <input id="house_number" name="house_number" defaultValue={inputValue(property?.house_number || getNestedValue(formSnapshot, "house"))} className={inputClass} placeholder="e.g. 151" />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label htmlFor="address_line" className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                    Address
+                  </label>
+
+                  <input id="address_line" name="address_line" defaultValue={inputValue(property?.address_line)} className={inputClass} placeholder="Road, block, flat, etc." />
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+              <h2 className="text-lg font-semibold text-neutral-950 dark:text-white">Property details</h2>
+
+              <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="floor" className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                    Floor
+                  </label>
+
+                  <input id="floor" name="floor" defaultValue={inputValue(unit?.floor || getNestedValue(formSnapshot, "floor"))} className={inputClass} placeholder="e.g. 3rd" />
+                </div>
+
+                <div>
+                  <label htmlFor="size_sqft" className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                    Size (sq ft)
+                  </label>
+
+                  <input id="size_sqft" name="size_sqft" type="number" min="0" defaultValue={numberValue(unit?.size_sqft) ?? numberValue(getNestedValue(formSnapshot, "size")) ?? ""} className={inputClass} />
+                </div>
+
+                <div>
+                  <label htmlFor="bedrooms" className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                    Bedrooms
+                  </label>
+
+                  <input id="bedrooms" name="bedrooms" type="number" min="0" defaultValue={numberValue(unit?.bedrooms) ?? numberValue(getNestedValue(formSnapshot, "bedrooms")) ?? ""} className={inputClass} />
+                </div>
+
+                <div>
+                  <label htmlFor="bathrooms" className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                    Bathrooms
+                  </label>
+
+                  <input id="bathrooms" name="bathrooms" type="number" min="0" step="0.5" defaultValue={numberValue(unit?.bathrooms) ?? numberValue(getNestedValue(formSnapshot, "bathrooms")) ?? ""} className={inputClass} />
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+              <h2 className="text-lg font-semibold text-neutral-950 dark:text-white">Costs</h2>
+
+              <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="monthly_rent" className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                    Monthly rent
+                  </label>
+
+                  <input id="monthly_rent" name="monthly_rent" type="number" min="0" defaultValue={typedListing.monthly_rent ?? numberValue(getNestedValue(formSnapshot, "rent")) ?? ""} className={inputClass} required />
+                </div>
+
+                <div>
+                  <label htmlFor="service_charge" className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                    Service charge
+                  </label>
+
+                  <input id="service_charge" name="service_charge" type="number" min="0" defaultValue={typedListing.service_charge ?? numberValue(getNestedValue(formSnapshot, "serviceCharge")) ?? ""} className={inputClass} />
+                </div>
+
+                <div>
+                  <label htmlFor="security_deposit" className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                    Security deposit
+                  </label>
+
+                  <input id="security_deposit" name="security_deposit" type="number" min="0" defaultValue={typedListing.security_deposit ?? numberValue(getNestedValue(formSnapshot, "securityDeposit")) ?? ""} className={inputClass} />
+                </div>
+
+                <div>
+                  <label htmlFor="available_from" className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                    Available from
+                  </label>
+
+                  <input id="available_from" name="available_from" type="date" defaultValue={inputValue(typedListing.available_from)} className={inputClass} />
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+              <h2 className="text-lg font-semibold text-neutral-950 dark:text-white">Contact</h2>
+
+              <div className="mt-5">
+                <label htmlFor="contact_number" className="mb-2 block text-sm font-medium text-neutral-800 dark:text-neutral-200">
+                  Phone number
+                </label>
+
+                <input id="contact_number" name="contact_number" type="tel" defaultValue={inputValue(primaryPhone?.contact_value)} className={inputClass} placeholder="01XXXXXXXXX" />
+              </div>
+            </section>
+
+            <div className="flex justify-end">
+              <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-neutral-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-200">
+                <Save size={17} />
+                Save changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </main>
+    </>
   );
 }
