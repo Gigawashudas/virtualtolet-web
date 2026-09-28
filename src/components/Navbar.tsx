@@ -1,15 +1,10 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-
 import Link from "next/link";
-
 import { usePathname } from "next/navigation";
-
 import { Bell, ChevronRight, Ellipsis, Moon, Sun } from "lucide-react";
-
 import VirtualToletLogo from "@/components/VirtualToletLogo";
-
 import { createClient } from "@/lib/supabase/client";
 
 type ProfileData = {
@@ -27,7 +22,6 @@ function ThemeToggle() {
     const nextIsDark = !isDark;
 
     document.documentElement.classList.toggle("dark", nextIsDark);
-
     window.localStorage.setItem("virtualtolet-theme", nextIsDark ? "dark" : "light");
   }
 
@@ -149,14 +143,6 @@ export default function Navbar() {
 
   const breadcrumbLinks = getBreadcrumbLinks(pathname);
 
-  /*
-   * Calculate how many breadcrumb links can remain visible.
-   *
-   * Important:
-   * - The navigation container itself must NOT use overflow-hidden.
-   * - Only the actual link row uses overflow-hidden.
-   * - This allows the 3-dot dropdown to escape the navigation area.
-   */
   useLayoutEffect(() => {
     function calculateVisibleLinks() {
       const container = navContainerRef.current;
@@ -174,48 +160,23 @@ export default function Navbar() {
       }
 
       const containerWidth = container.getBoundingClientRect().width;
-
       const gap = 4;
       const moreButtonWidth = 44;
 
       const widths = links.map((link) => link.getBoundingClientRect().width);
 
-      /*
-       * Calculate the width required to show ALL links.
-       */
       const allLinksWidth = widths.reduce((total, width, index) => total + width + (index > 0 ? gap : 0), 0);
 
-      /*
-       * Everything fits.
-       *
-       * Do not show the 3-dot button unnecessarily.
-       */
       if (allLinksWidth <= containerWidth) {
         setVisibleCount(links.length);
         return;
       }
 
-      /*
-       * Some links need to move into the 3-dot menu.
-       *
-       * Reserve the width of the 3-dot button first.
-       */
       const availableForLinks = Math.max(containerWidth - moreButtonWidth - gap, 0);
 
       let total = 0;
       let count = 0;
 
-      /*
-       * Keep the most recent/current breadcrumbs visible.
-       *
-       * Example:
-       *
-       * Home > Find a Rental > Apartment
-       *
-       * If space is limited:
-       *
-       * ... > Find a Rental > Apartment
-       */
       for (let index = widths.length - 1; index >= 0; index -= 1) {
         const nextWidth = widths[index] + (count > 0 ? gap : 0);
 
@@ -227,10 +188,6 @@ export default function Navbar() {
         count += 1;
       }
 
-      /*
-       * Always keep at least the final/current link visible
-       * when possible.
-       */
       if (count === 0 && links.length > 0) {
         count = 1;
       }
@@ -254,9 +211,6 @@ export default function Navbar() {
     };
   }, [breadcrumbLinks]);
 
-  /*
-   * Close the 3-dot menu when clicking outside.
-   */
   useEffect(() => {
     if (!moreOpen) {
       return;
@@ -279,9 +233,6 @@ export default function Navbar() {
     };
   }, [moreOpen]);
 
-  /*
-   * Load authentication state and profile name.
-   */
   useEffect(() => {
     let mounted = true;
 
@@ -401,7 +352,6 @@ export default function Navbar() {
 
           <button type="button" aria-label="Notifications" className="relative hidden h-10 w-10 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:flex">
             <Bell className="h-5 w-5" strokeWidth={1.8} />
-
             <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-brand-red" />
           </button>
 
@@ -422,25 +372,6 @@ export default function Navbar() {
           )}
         </div>
       </div>
-
-      {/* MOBILE HIDDEN NAVIGATION */}
-      {moreOpen && hiddenLinks.length > 0 && (
-        <div className="border-t border-border bg-background sm:hidden">
-          <nav className="mx-auto max-w-[1440px] px-4 py-2 sm:px-6">
-            <div className="flex flex-wrap items-center gap-1">
-              {hiddenLinks.map((link, index) => (
-                <div key={link.href} className="flex items-center">
-                  {index > 0 && <ChevronRight className="mx-0.5 h-3.5 w-3.5 text-text-muted" strokeWidth={1.7} />}
-
-                  <Link href={link.href} onClick={closeMoreMenu} className="rounded-md px-2 py-2 text-xs font-bold uppercase tracking-[0.08em] text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
-                    {link.label}
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </nav>
-        </div>
-      )}
 
       {/* MOBILE POST A TO-LET */}
       <div className="border-t border-border bg-background sm:hidden">
