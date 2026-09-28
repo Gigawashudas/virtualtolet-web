@@ -119,11 +119,15 @@ const inputClass = "mt-2 h-12 w-full rounded-lg border border-border bg-backgrou
 const textareaClass = "mt-2 min-h-28 w-full resize-y rounded-lg border border-border bg-background px-4 py-3 text-sm font-medium text-text-primary outline-none transition placeholder:text-text-muted focus:border-brand-green focus:ring-2 focus:ring-brand-green/10";
 
 const MAX_PHOTOS = 10;
+
 const MAX_VIDEOS = 2;
+
 const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
+
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
 
 const allowedPhotoTypes = ["image/jpeg", "image/png", "image/webp"];
+
 const allowedVideoTypes = ["video/mp4", "video/webm", "video/quicktime"];
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -177,11 +181,17 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
 
 export default function PostToLetPage() {
   const router = useRouter();
+
   const [checkingAuth, setCheckingAuth] = useState(true);
+
   const [form, setForm] = useState<ListingForm>(initialForm);
+
   const [postRole, setPostRole] = useState<PostRole>("owner");
+
   const [reviewing, setReviewing] = useState(false);
+
   const [uploadingMedia, setUploadingMedia] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
 
   /**
@@ -253,6 +263,7 @@ export default function PostToLetPage() {
 
   function isValidBangladeshPhone(phone: string) {
     const normalized = phone.replace(/[\s-]/g, "");
+
     return /^(01[3-9]\d{8}|\+8801[3-9]\d{8})$/.test(normalized);
   }
 
@@ -317,6 +328,7 @@ export default function PostToLetPage() {
         const extension = file.name.split(".").pop()?.toLowerCase() || (mediaType === "photo" ? "jpg" : "mp4");
 
         const fileId = crypto.randomUUID();
+
         const filePath = `${user.id}/${mediaType}/${fileId}.${extension}`;
 
         const { error: uploadError } = await supabase.storage.from("listing-media").upload(filePath, file, {
@@ -497,11 +509,8 @@ export default function PostToLetPage() {
 
         occupancy: {
           suitable_for: form.propertyType === "Apartment" ? form.suitableFor : null,
-
-          gender: form.propertyType === "Room" || form.propertyType === "Seat" ? form.gender.join(", ") : null,
-
+          gender: form.propertyType === "Room" ? form.gender.join(", ") : form.propertyType === "Seat" ? form.gender[0] || null : null,
           room_capacity: form.propertyType === "Room" || form.propertyType === "Seat" ? (form.roomCapacity ? Number(form.roomCapacity) : null) : null,
-
           available_seats: form.propertyType === "Seat" && form.availableSeats ? Number(form.availableSeats) : null,
         },
 
@@ -530,17 +539,13 @@ export default function PostToLetPage() {
         parking: {
           bike: {
             available: form.propertyType === "Garage" ? null : form.bikeParking,
-
             charge_type: form.propertyType === "Garage" ? null : form.bikeParking ? form.bikeParkingCharge : null,
-
             monthly_charge: form.propertyType === "Garage" ? null : form.bikeParking && form.bikeParkingCharge === "extra" && form.bikeParkingChargeAmount.trim() ? Number(form.bikeParkingChargeAmount) : null,
           },
 
           car: {
             available: form.propertyType === "Garage" ? null : form.carParking,
-
             charge_type: form.propertyType === "Garage" ? null : form.carParking ? form.carParkingCharge : null,
-
             monthly_charge: form.propertyType === "Garage" ? null : form.carParking && form.carParkingCharge === "extra" && form.carParkingChargeAmount.trim() ? Number(form.carParkingChargeAmount) : null,
           },
         },
@@ -682,6 +687,7 @@ export default function PostToLetPage() {
       window.alert("Your listing has been submitted for verification.");
 
       router.replace("/");
+
       router.refresh();
     } catch (error) {
       console.error("LISTING SUBMISSION ERROR:", error);
@@ -804,6 +810,7 @@ export default function PostToLetPage() {
 
   if (reviewing) {
     const photos = form.media.filter((media) => media.type === "photo");
+
     const videos = form.media.filter((media) => media.type === "video");
 
     return (
@@ -1058,8 +1065,12 @@ export default function PostToLetPage() {
                   <>
                     <Field label="For">
                       <div className="grid gap-3 sm:grid-cols-3">
-                        {["Male", "Female", "Couple"].map((option) => (
-                          <ChoiceButton key={option} label={option} selected={form.gender.includes(option)} onClick={() => toggleGender(option)} />
+                        {["Male", "Female", "Couple", "Student", "Job Holder"].map((option) => (
+                          <button key={option} type="button" onClick={() => toggleGender(option)} className={`flex min-h-12 items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left text-sm font-bold transition ${form.gender.includes(option) ? "border-brand-green bg-brand-green/5 text-brand-green" : "border-border bg-background text-text-primary hover:border-hover-border hover:bg-hover-background hover:text-hover-text"}`}>
+                            <span>{option}</span>
+
+                            <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${form.gender.includes(option) ? "border-brand-green bg-brand-green text-white" : "border-border-strong bg-background"}`}>{form.gender.includes(option) && <Check className="h-3 w-3" strokeWidth={3} />}</span>
+                          </button>
                         ))}
                       </div>
 
