@@ -141,7 +141,7 @@ export default async function AdminListingReviewPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <Navbar adminMode />
+      <Navbar />
 
       <div className="mx-auto max-w-[1200px] px-6 py-10 sm:px-8">
         <div className="mb-8">

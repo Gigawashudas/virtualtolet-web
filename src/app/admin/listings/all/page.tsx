@@ -134,7 +134,7 @@ export default async function AdminAllListingsPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <Navbar adminMode />
+      <Navbar />
 
       <div className="mx-auto max-w-[1440px] px-6 py-10 sm:px-8 lg:px-10">
         <div className="mb-10">
