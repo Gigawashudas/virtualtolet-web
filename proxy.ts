@@ -32,11 +32,14 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const {
-    data: { claims },
-  } = await supabase.auth.getClaims();
+  const { data: claims } = await supabase.auth.getClaims();
 
-  const user = claims?.sub ? claims : null;
+  const user =
+    claims && typeof claims === "object" && "sub" in claims
+      ? claims
+      : claims && typeof claims === "object" && "claims" in claims && claims.claims && typeof claims.claims === "object" && "sub" in claims.claims
+        ? claims.claims
+        : null;
 
   const pathname = request.nextUrl.pathname;
 
@@ -62,7 +65,9 @@ export async function proxy(request: NextRequest) {
     /*
      * Preserve any refreshed Supabase cookies/headers.
      */
-    redirectResponse.cookies.setAll(supabaseResponse.cookies.getAll());
+    for (const cookie of supabaseResponse.cookies.getAll()) {
+      redirectResponse.cookies.set(cookie.name, cookie.value);
+    }
 
     for (const header of ["cache-control", "expires", "pragma"]) {
       const value = supabaseResponse.headers.get(header);

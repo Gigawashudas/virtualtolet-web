@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-
 import Link from "next/link";
-
 import { usePathname } from "next/navigation";
-
 import { ChevronRight, Ellipsis, Moon, Sun } from "lucide-react";
 
 import VirtualToletLogo from "@/components/VirtualToletLogo";
-
 import { createClient } from "@/lib/supabase/client";
 
 type ProfileData = {
@@ -134,13 +130,73 @@ function getBreadcrumbLinks(pathname: string): BreadcrumbLink[] {
   return links;
 }
 
+function MoreMenu({ breadcrumbLinks, hiddenLinks, isAuthenticated, postToLetHref, profileInitial, profileName }: { breadcrumbLinks: BreadcrumbLink[]; hiddenLinks: BreadcrumbLink[]; isAuthenticated: boolean; postToLetHref: string; profileInitial: string; profileName: string }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  function closeMoreMenu() {
+    setMoreOpen(false);
+  }
+
+  return (
+    <div className={["relative shrink-0", "sm:ml-1", hiddenLinks.length === 0 ? "sm:hidden" : ""].join(" ")}>
+      <button type="button" aria-label="Open navigation menu" aria-expanded={moreOpen} aria-haspopup="menu" onClick={() => setMoreOpen((current) => !current)} className={["flex h-10 w-10 items-center justify-center", "rounded-lg text-text-primary", "transition-colors", "hover:bg-hover-background hover:text-hover-text", moreOpen ? "bg-hover-background" : ""].join(" ")}>
+        <Ellipsis className="h-5 w-5" strokeWidth={1.8} />
+      </button>
+
+      {moreOpen && (
+        <div role="menu" className="absolute right-0 top-12 z-[100] min-w-[210px] rounded-lg border border-border bg-background p-1.5 shadow-xl sm:left-0 sm:right-auto">
+          <Link href={postToLetHref} role="menuitem" onClick={closeMoreMenu} className="flex min-h-10 items-center rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
+            Post a TO-LET
+          </Link>
+
+          <div className="my-1 border-t border-border sm:hidden" />
+
+          <div className="flex items-center justify-between rounded-md px-3 sm:hidden">
+            <span className="text-sm font-medium text-text-primary">Theme</span>
+            <ThemeToggle />
+          </div>
+
+          {isAuthenticated ? (
+            <Link href="/profile" role="menuitem" onClick={closeMoreMenu} className="flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:hidden">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-green text-xs font-bold text-white">{profileInitial}</span>
+              <span className="truncate">{profileName}</span>
+            </Link>
+          ) : (
+            <Link href="/sign-in" role="menuitem" onClick={closeMoreMenu} className="flex min-h-10 items-center rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:hidden">
+              Sign In
+            </Link>
+          )}
+
+          {breadcrumbLinks.length > 0 && (
+            <>
+              <div className="my-1 border-t border-border sm:hidden" />
+
+              {breadcrumbLinks.map((link) => (
+                <Link key={link.href} href={link.href} role="menuitem" onClick={closeMoreMenu} className="flex min-h-10 items-center rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:hidden">
+                  {link.label}
+                </Link>
+              ))}
+            </>
+          )}
+
+          {hiddenLinks.map((link) => (
+            <Link key={`desktop-${link.href}`} href={link.href} role="menuitem" onClick={closeMoreMenu} className="hidden min-h-10 items-center rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:flex">
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Navbar() {
   const pathname = usePathname();
 
   const [profileName, setProfileName] = useState("Profile");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(0);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const navContainerRef = useRef<HTMLDivElement>(null);
   const navMeasureRef = useRef<HTMLDivElement>(null);
@@ -278,10 +334,6 @@ export default function Navbar() {
     };
   }, []);
 
-  useEffect(() => {
-    setMoreOpen(false);
-  }, [pathname]);
-
   function closeMoreMenu() {
     setMoreOpen(false);
   }
@@ -341,7 +393,6 @@ export default function Navbar() {
 
                   <div className="flex items-center justify-between rounded-md px-3 sm:hidden">
                     <span className="text-sm font-medium text-text-primary">Theme</span>
-
                     <ThemeToggle />
                   </div>
 
