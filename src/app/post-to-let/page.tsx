@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { useRouter } from "next/navigation";
+
 import { Check, ChevronDown, ImagePlus, Play, ShieldCheck, Video, X } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
+
 import { createClient } from "@/lib/supabase/client";
 
 type PropertyType = "Apartment" | "Room" | "Seat" | "Garage";
+
 type PostRole = "owner" | "community";
 
 type ListingMedia = {
@@ -21,7 +25,7 @@ type ListingMedia = {
 type ListingForm = {
   propertyType: PropertyType;
   suitableFor: string;
-  gender: string;
+  gender: string[];
   bedrooms: string;
   bathrooms: string;
   balconies: string;
@@ -66,7 +70,7 @@ type ListingForm = {
 const initialForm: ListingForm = {
   propertyType: "Apartment",
   suitableFor: "Family",
-  gender: "Male",
+  gender: [],
   bedrooms: "",
   bathrooms: "",
   balconies: "",
@@ -120,7 +124,6 @@ const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
 
 const allowedPhotoTypes = ["image/jpeg", "image/png", "image/webp"];
-
 const allowedVideoTypes = ["video/mp4", "video/webm", "video/quicktime"];
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -129,7 +132,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div className="mb-6">
         <h2 className="text-lg font-extrabold text-text-primary">{title}</h2>
       </div>
-
       {children}
     </section>
   );
@@ -140,10 +142,8 @@ function Field({ label, optional = false, children }: { label: string; optional?
     <label className="block">
       <span className="text-sm font-bold text-text-primary">
         {label}
-
         {optional && <span className="ml-2 text-xs font-medium text-text-muted">Optional</span>}
       </span>
-
       {children}
     </label>
   );
@@ -153,7 +153,6 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   return (
     <button type="button" onClick={() => onChange(!checked)} className={`flex items-center justify-between rounded-lg border px-4 py-3 text-left transition ${checked ? "border-brand-green bg-brand-green/5" : "border-border bg-background hover:border-hover-border hover:bg-hover-background"}`}>
       <span className="text-sm font-bold text-text-primary">{label}</span>
-
       <span className={`flex h-5 w-5 items-center justify-center rounded-full border ${checked ? "border-brand-green bg-brand-green text-white" : "border-border-strong"}`}>{checked && <Check className="h-3 w-3" strokeWidth={3} />}</span>
     </button>
   );
@@ -171,7 +170,6 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-1 border-b border-border py-4 last:border-b-0 sm:grid-cols-[190px_1fr] sm:gap-6">
       <span className="text-sm font-bold text-text-secondary">{label}</span>
-
       <span className="text-sm font-semibold text-text-primary">{value || "Not provided"}</span>
     </div>
   );
@@ -179,7 +177,6 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
 
 export default function PostToLetPage() {
   const router = useRouter();
-
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [form, setForm] = useState<ListingForm>(initialForm);
   const [postRole, setPostRole] = useState<PostRole>("owner");
@@ -187,7 +184,7 @@ export default function PostToLetPage() {
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  /*
+  /**
    * Protect the page.
    *
    * If the user is not authenticated, send them to sign-up
@@ -240,6 +237,13 @@ export default function PostToLetPage() {
     }));
   }
 
+  function toggleGender(option: string) {
+    setForm((current) => ({
+      ...current,
+      gender: current.gender.includes(option) ? current.gender.filter((item) => item !== option) : [...current.gender, option],
+    }));
+  }
+
   function handlePropertyTypeChange(type: PropertyType) {
     setForm((current) => ({
       ...current,
@@ -249,7 +253,6 @@ export default function PostToLetPage() {
 
   function isValidBangladeshPhone(phone: string) {
     const normalized = phone.replace(/[\s-]/g, "");
-
     return /^(01[3-9]\d{8}|\+8801[3-9]\d{8})$/.test(normalized);
   }
 
@@ -314,7 +317,6 @@ export default function PostToLetPage() {
         const extension = file.name.split(".").pop()?.toLowerCase() || (mediaType === "photo" ? "jpg" : "mp4");
 
         const fileId = crypto.randomUUID();
-
         const filePath = `${user.id}/${mediaType}/${fileId}.${extension}`;
 
         const { error: uploadError } = await supabase.storage.from("listing-media").upload(filePath, file, {
@@ -377,6 +379,11 @@ export default function PostToLetPage() {
       return;
     }
 
+    if ((form.propertyType === "Room" || form.propertyType === "Seat") && form.gender.length === 0) {
+      window.alert("Please select at least one option for who the listing is for.");
+      return;
+    }
+
     if (!form.contactNumber.trim()) {
       window.alert("Please enter a contact number.");
       return;
@@ -423,7 +430,7 @@ export default function PostToLetPage() {
 
       const listingType = form.propertyType === "Apartment" ? "apartment" : form.propertyType === "Room" ? "room" : form.propertyType === "Seat" ? "hostel_seat" : "garage";
 
-      const title = form.propertyType === "Apartment" ? `${form.bedrooms || "Apartment"} Bedroom Apartment${form.area ? ` in ${form.area}` : ""}` : form.propertyType === "Room" ? `${form.gender} Room${form.area ? ` in ${form.area}` : ""}` : form.propertyType === "Seat" ? `${form.gender} Seat${form.area ? ` in ${form.area}` : ""}` : `${form.vehicleType} Garage${form.area ? ` in ${form.area}` : ""}`;
+      const title = form.propertyType === "Apartment" ? `${form.bedrooms || "Apartment"} Bedroom Apartment${form.area ? ` in ${form.area}` : ""}` : form.propertyType === "Room" ? `${form.gender.length ? form.gender.join(", ") : "Room"} Room${form.area ? ` in ${form.area}` : ""}` : form.propertyType === "Seat" ? `${form.gender.join(", ")} Seat${form.area ? ` in ${form.area}` : ""}` : `${form.vehicleType} Garage${form.area ? ` in ${form.area}` : ""}`;
 
       const addressParts = [form.flatNumber && `Flat ${form.flatNumber}`, form.floor && `${form.floor} Floor`, form.house && `House ${form.house}`, form.road && `Road ${form.road}`, form.block && `Block ${form.block}`].filter(Boolean);
 
@@ -490,8 +497,11 @@ export default function PostToLetPage() {
 
         occupancy: {
           suitable_for: form.propertyType === "Apartment" ? form.suitableFor : null,
-          gender: form.propertyType === "Room" || form.propertyType === "Seat" ? form.gender : null,
+
+          gender: form.propertyType === "Room" || form.propertyType === "Seat" ? form.gender.join(", ") : null,
+
           room_capacity: form.propertyType === "Room" || form.propertyType === "Seat" ? (form.roomCapacity ? Number(form.roomCapacity) : null) : null,
+
           available_seats: form.propertyType === "Seat" && form.availableSeats ? Number(form.availableSeats) : null,
         },
 
@@ -520,13 +530,17 @@ export default function PostToLetPage() {
         parking: {
           bike: {
             available: form.propertyType === "Garage" ? null : form.bikeParking,
+
             charge_type: form.propertyType === "Garage" ? null : form.bikeParking ? form.bikeParkingCharge : null,
+
             monthly_charge: form.propertyType === "Garage" ? null : form.bikeParking && form.bikeParkingCharge === "extra" && form.bikeParkingChargeAmount.trim() ? Number(form.bikeParkingChargeAmount) : null,
           },
 
           car: {
             available: form.propertyType === "Garage" ? null : form.carParking,
+
             charge_type: form.propertyType === "Garage" ? null : form.carParking ? form.carParkingCharge : null,
+
             monthly_charge: form.propertyType === "Garage" ? null : form.carParking && form.carParkingCharge === "extra" && form.carParkingChargeAmount.trim() ? Number(form.carParkingChargeAmount) : null,
           },
         },
@@ -623,7 +637,7 @@ export default function PostToLetPage() {
         const { error: preferenceError } = await supabase.from("listing_preferences").insert({
           listing_id: listing.id,
           tenant_preference: "not_specified",
-          notes: `${form.gender} ${form.propertyType.toLowerCase()} listing`,
+          notes: `${form.gender.join(", ")} ${form.propertyType.toLowerCase()} listing`,
         });
 
         if (preferenceError) {
@@ -768,7 +782,7 @@ export default function PostToLetPage() {
     );
   }
 
-  /*
+  /**
    * While Supabase checks the current session, don't render
    * the listing form. This prevents an unauthenticated user
    * from briefly seeing the protected page.
@@ -790,7 +804,6 @@ export default function PostToLetPage() {
 
   if (reviewing) {
     const photos = form.media.filter((media) => media.type === "photo");
-
     const videos = form.media.filter((media) => media.type === "video");
 
     return (
@@ -828,7 +841,7 @@ export default function PostToLetPage() {
 
               {form.propertyType === "Room" && (
                 <>
-                  <ReviewRow label="For" value={form.gender} />
+                  <ReviewRow label="For" value={form.gender.join(", ")} />
 
                   <ReviewRow label="Room capacity" value={form.roomCapacity ? `${form.roomCapacity} people` : ""} />
 
@@ -842,7 +855,7 @@ export default function PostToLetPage() {
 
               {form.propertyType === "Seat" && (
                 <>
-                  <ReviewRow label="For" value={form.gender} />
+                  <ReviewRow label="For" value={form.gender.join(", ")} />
 
                   <ReviewRow label="Total people in room" value={form.roomCapacity ? `${form.roomCapacity} people` : ""} />
 
@@ -1044,11 +1057,13 @@ export default function PostToLetPage() {
                 {form.propertyType === "Room" && (
                   <>
                     <Field label="For">
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <ChoiceButton label="Male" selected={form.gender === "Male"} onClick={() => updateField("gender", "Male")} />
-
-                        <ChoiceButton label="Female" selected={form.gender === "Female"} onClick={() => updateField("gender", "Female")} />
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        {["Male", "Female", "Couple"].map((option) => (
+                          <ChoiceButton key={option} label={option} selected={form.gender.includes(option)} onClick={() => toggleGender(option)} />
+                        ))}
                       </div>
+
+                      <p className="mt-2 text-xs font-medium text-text-muted">Select one or more options.</p>
                     </Field>
 
                     <div className="grid gap-6 sm:grid-cols-2">
@@ -1087,9 +1102,9 @@ export default function PostToLetPage() {
                   <>
                     <Field label="For">
                       <div className="grid gap-3 sm:grid-cols-2">
-                        <ChoiceButton label="Male" selected={form.gender === "Male"} onClick={() => updateField("gender", "Male")} />
+                        <ChoiceButton label="Male" selected={form.gender.includes("Male")} onClick={() => updateField("gender", ["Male"])} />
 
-                        <ChoiceButton label="Female" selected={form.gender === "Female"} onClick={() => updateField("gender", "Female")} />
+                        <ChoiceButton label="Female" selected={form.gender.includes("Female")} onClick={() => updateField("gender", ["Female"])} />
                       </div>
                     </Field>
 
