@@ -14,6 +14,11 @@ const roomTypes = [
     label: "Female",
     href: "/rentals/room/female",
   },
+  {
+    number: "03",
+    label: "Couple",
+    href: "/rentals/room/couple",
+  },
 ];
 
 export default function RoomRentalPage() {

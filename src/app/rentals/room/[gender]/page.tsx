@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 
 import { createClient } from "@/lib/supabase/server";
 
-type Gender = "male" | "female";
+type Gender = "male" | "female" | "couple";
 
 type SearchParams = {
   block?: string;
@@ -74,11 +74,22 @@ function normalizeGender(value: string | null): Gender | null {
     return "female";
   }
 
+  if (normalized === "couple") {
+    return "couple";
+  }
+
   return null;
 }
 
 function normalizePreference(value: string | null): string {
   return (value ?? "").trim().toLowerCase();
+}
+
+function normalizePreferenceValues(value: string | null): string[] {
+  return normalizePreference(value)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function normalizeBlock(value: string | null): string | null {
@@ -110,11 +121,17 @@ function isSuitableFor(listing: Listing, gender: Gender): boolean {
 
   const tenantPreference = normalizePreference(listingPreference.tenant_preference);
 
+  const tenantPreferences = normalizePreferenceValues(listingPreference.tenant_preference);
+
   if (gender === "male") {
-    return tenantPreference === "male" || tenantPreference === "both" || tenantPreference === "room_male" || tenantPreference === "male_room" || listingPreference.male_bachelors_allowed === true;
+    return tenantPreference === "male" || tenantPreference === "both" || tenantPreference === "room_male" || tenantPreference === "male_room" || tenantPreferences.includes("male") || tenantPreferences.includes("room_male") || tenantPreferences.includes("male_room") || listingPreference.male_bachelors_allowed === true;
   }
 
-  return tenantPreference === "female" || tenantPreference === "both" || tenantPreference === "room_female" || tenantPreference === "female_room" || listingPreference.female_bachelors_allowed === true;
+  if (gender === "female") {
+    return tenantPreference === "female" || tenantPreference === "both" || tenantPreference === "room_female" || tenantPreference === "female_room" || tenantPreferences.includes("female") || tenantPreferences.includes("room_female") || tenantPreferences.includes("female_room") || listingPreference.female_bachelors_allowed === true;
+  }
+
+  return tenantPreference === "couple" || tenantPreference === "room_couple" || tenantPreference === "couple_room" || tenantPreferences.includes("couple") || tenantPreferences.includes("room_couple") || tenantPreferences.includes("couple_room");
 }
 
 function formatMoney(value: number | null): string {
@@ -150,11 +167,27 @@ function getImageUrl(storagePath: string): string {
 }
 
 function getGenderLabel(gender: Gender): string {
-  return gender === "male" ? "Male" : "Female";
+  if (gender === "male") {
+    return "Male";
+  }
+
+  if (gender === "female") {
+    return "Female";
+  }
+
+  return "Couple";
 }
 
 function getGenderDescription(gender: Gender): string {
-  return gender === "male" ? "Rooms suitable for male tenants." : "Rooms suitable for female tenants.";
+  if (gender === "male") {
+    return "Rooms suitable for male tenants.";
+  }
+
+  if (gender === "female") {
+    return "Rooms suitable for female tenants.";
+  }
+
+  return "Rooms suitable for couples.";
 }
 
 function sortListings(listings: Listing[], sort: string | undefined): Listing[] {
@@ -193,7 +226,6 @@ export default async function RoomGenderPage({
 }) {
   const { gender: rawGender } = await params;
   const query = await searchParams;
-
   const gender = normalizeGender(rawGender);
 
   if (!gender) {
@@ -330,11 +362,8 @@ export default async function RoomGenderPage({
 
             <select id="sort" name="sort" defaultValue={query.sort ?? "newest"} className="h-9 border border-border bg-surface px-3 text-xs font-semibold outline-none transition-colors focus:border-black">
               <option value="newest">Newest</option>
-
               <option value="oldest">Oldest</option>
-
               <option value="rent-low">Rent: Low to High</option>
-
               <option value="rent-high">Rent: High to Low</option>
             </select>
 
@@ -366,9 +395,7 @@ export default async function RoomGenderPage({
           <div className="grid grid-cols-1 gap-3 pt-5 sm:grid-cols-2 lg:grid-cols-3">
             {sortedListings.map((listing) => {
               const property = firstRelation(listing.properties);
-
               const unit = firstRelation(listing.property_units);
-
               const block = getListingBlock(listing);
 
               const media = [...(listing.listing_media ?? [])].filter((item) => item.media_type === "image").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0];
