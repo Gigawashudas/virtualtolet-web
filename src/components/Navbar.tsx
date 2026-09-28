@@ -23,12 +23,14 @@ function ThemeToggle() {
     const nextIsDark = !isDark;
 
     document.documentElement.classList.toggle("dark", nextIsDark);
+
     window.localStorage.setItem("virtualtolet-theme", nextIsDark ? "dark" : "light");
   }
 
   return (
     <button type="button" aria-label="Toggle theme" title="Toggle theme" onClick={toggleTheme} className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
       <Moon className="h-5 w-5 dark:hidden" strokeWidth={1.8} />
+
       <Sun className="hidden h-5 w-5 dark:block" strokeWidth={1.8} />
     </button>
   );
@@ -275,6 +277,10 @@ export default function Navbar() {
     };
   }, []);
 
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [pathname]);
+
   function closeMoreMenu() {
     setMoreOpen(false);
   }
@@ -289,8 +295,6 @@ export default function Navbar() {
 
   const hiddenLinks = hiddenCount > 0 ? breadcrumbLinks.slice(0, hiddenCount) : [];
 
-  const hasDesktopMoreLinks = hiddenLinks.length > 0;
-
   return (
     <header className="relative z-50 border-b border-border bg-background">
       <div className="mx-auto grid h-[72px] max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:gap-4 sm:px-6 lg:px-8">
@@ -302,22 +306,82 @@ export default function Navbar() {
         {/* CENTER — NAVIGATION */}
         <div ref={navContainerRef} className="relative min-w-0">
           <div className="flex min-w-0 items-center justify-center">
-            {/* 3-DOT MENU */}
-            <div ref={moreMenuRef} className={["relative mr-1 shrink-0", hasDesktopMoreLinks ? "" : "sm:hidden"].join(" ")}>
-              <button type="button" aria-label="Show more navigation" aria-expanded={moreOpen} aria-haspopup="menu" onClick={() => setMoreOpen((current) => !current)} className={["flex h-10 w-10 items-center justify-center", "rounded-lg text-text-primary", "transition-colors", "hover:bg-hover-background hover:text-hover-text", moreOpen ? "bg-hover-background" : ""].join(" ")}>
+            {/* DESKTOP — VISIBLE BREADCRUMBS */}
+            <nav className="hidden min-w-0 items-center justify-center gap-0.5 overflow-hidden sm:flex">
+              {visibleLinks.map((link, index) => (
+                <div key={link.href} className="flex min-w-0 shrink-0 items-center">
+                  {index > 0 && <ChevronRight className="mx-0.5 h-3.5 w-3.5 shrink-0 text-text-muted" strokeWidth={1.7} />}
+
+                  <Link href={link.href} className={["max-w-[180px] truncate rounded-md px-2 py-2", "text-sm font-bold uppercase tracking-[0.08em]", "text-text-primary", "transition-colors", "hover:bg-hover-background hover:text-hover-text"].join(" ")}>
+                    {link.label}
+                  </Link>
+                </div>
+              ))}
+            </nav>
+
+            {/* 3-DOT MENU
+                Mobile: always visible.
+                Desktop: visible only when links are hidden.
+            */}
+            <div ref={moreMenuRef} className={["relative shrink-0", "sm:ml-1", hiddenLinks.length === 0 ? "sm:hidden" : ""].join(" ")}>
+              <button type="button" aria-label="Open navigation menu" aria-expanded={moreOpen} aria-haspopup="menu" onClick={() => setMoreOpen((current) => !current)} className={["flex h-10 w-10 items-center justify-center", "rounded-lg text-text-primary", "transition-colors", "hover:bg-hover-background hover:text-hover-text", moreOpen ? "bg-hover-background" : ""].join(" ")}>
                 <Ellipsis className="h-5 w-5" strokeWidth={1.8} />
               </button>
 
               {moreOpen && (
-                <div role="menu" className="absolute left-0 top-12 z-[100] min-w-[190px] rounded-lg border border-border bg-background p-1.5 shadow-xl">
-                  {/* MOBILE — POST TO-LET */}
-                  <Link href={postToLetHref} role="menuitem" onClick={closeMoreMenu} className="flex min-h-10 items-center rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:hidden">
+                <div role="menu" className="absolute right-0 top-12 z-[100] min-w-[210px] rounded-lg border border-border bg-background p-1.5 shadow-xl sm:left-0 sm:right-auto">
+                  {/* POST TO-LET */}
+                  <Link href={postToLetHref} role="menuitem" onClick={closeMoreMenu} className="flex min-h-10 items-center rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
                     Post a TO-LET
                   </Link>
 
+                  {/* MOBILE — THEME */}
+                  <div className="border-t border-border my-1 sm:hidden" />
+
+                  <div className="flex items-center justify-between rounded-md px-3 sm:hidden">
+                    <span className="text-sm font-medium text-text-primary">Theme</span>
+
+                    <ThemeToggle />
+                  </div>
+
+                  {/* MOBILE — NOTIFICATIONS */}
+                  <button type="button" aria-label="Notifications" className="flex min-h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:hidden">
+                    <Bell className="h-5 w-5" strokeWidth={1.8} />
+
+                    <span>Notifications</span>
+
+                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-brand-red" />
+                  </button>
+
+                  {/* MOBILE — PROFILE / SIGN IN */}
+                  {isAuthenticated ? (
+                    <Link href="/profile" role="menuitem" onClick={closeMoreMenu} className="flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:hidden">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-green text-xs font-bold text-white">{profileInitial}</span>
+
+                      <span className="truncate">{profileName}</span>
+                    </Link>
+                  ) : (
+                    <Link href="/sign-in" role="menuitem" onClick={closeMoreMenu} className="flex min-h-10 items-center rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:hidden">
+                      Sign In
+                    </Link>
+                  )}
+
+                  {/* MOBILE — BREADCRUMBS */}
+                  {breadcrumbLinks.length > 0 && (
+                    <>
+                      <div className="my-1 border-t border-border sm:hidden" />
+
+                      {breadcrumbLinks.map((link) => (
+                        <Link key={link.href} href={link.href} role="menuitem" onClick={closeMoreMenu} className="flex min-h-10 items-center rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:hidden">
+                          {link.label}
+                        </Link>
+                      ))}
+                    </>
+                  )}
+
                   {/* DESKTOP — HIDDEN BREADCRUMBS */}
                   {hiddenLinks.map((link) => (
-                    <Link key={link.href} href={link.href} role="menuitem" onClick={closeMoreMenu} className="flex min-h-10 items-center rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
+                    <Link key={`desktop-${link.href}`} href={link.href} role="menuitem" onClick={closeMoreMenu} className="hidden min-h-10 items-center rounded-md px-3 text-sm font-medium text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:flex">
                       {link.label}
                     </Link>
                   ))}
@@ -325,23 +389,10 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* VISIBLE BREADCRUMBS */}
-            <nav className="flex min-w-0 items-center justify-center gap-0.5 overflow-hidden">
-              {visibleLinks.map((link, index) => (
-                <div key={link.href} className="flex min-w-0 shrink-0 items-center">
-                  {index > 0 && <ChevronRight className="mx-0.5 h-3.5 w-3.5 shrink-0 text-text-muted" strokeWidth={1.7} />}
-
-                  <Link href={link.href} className={["max-w-[120px] truncate rounded-md px-2 py-2", "text-[11px] font-bold uppercase tracking-[0.08em]", "text-text-primary", "transition-colors", "hover:bg-hover-background hover:text-hover-text", "sm:max-w-[180px] sm:text-sm"].join(" ")}>
-                    {link.label}
-                  </Link>
-                </div>
-              ))}
-            </nav>
-
             {/* HIDDEN MEASUREMENT NAVIGATION */}
             <div ref={navMeasureRef} aria-hidden="true" className="pointer-events-none absolute left-0 top-0 -z-50 flex whitespace-nowrap opacity-0">
               {breadcrumbLinks.map((link) => (
-                <span key={link.href} data-breadcrumb-link className="px-2 py-2 text-[11px] font-bold uppercase tracking-[0.08em] sm:text-sm">
+                <span key={link.href} data-breadcrumb-link className="px-2 py-2 text-sm font-bold uppercase tracking-[0.08em]">
                   {link.label}
                 </span>
               ))}
@@ -349,25 +400,22 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* RIGHT — ACTIONS */}
-        <div className="flex shrink-0 items-center justify-end gap-0.5 sm:gap-1">
-          {/* DESKTOP — POST A TO-LET */}
-          <Link href={postToLetHref} className="hidden h-10 items-center whitespace-nowrap rounded-lg px-3 text-sm font-bold text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:flex">
+        {/* RIGHT — DESKTOP ACTIONS */}
+        <div className="hidden shrink-0 items-center justify-end gap-1 sm:flex">
+          <Link href={postToLetHref} className="flex h-10 items-center whitespace-nowrap rounded-lg px-3 text-sm font-bold text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
             Post a TO-LET
           </Link>
 
           <ThemeToggle />
 
-          {/* DESKTOP — NOTIFICATIONS */}
-          <button type="button" aria-label="Notifications" className="relative hidden h-10 w-10 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:flex">
+          <button type="button" aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
             <Bell className="h-5 w-5" strokeWidth={1.8} />
 
             <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-brand-red" />
           </button>
 
-          {/* DESKTOP — PROFILE / SIGN IN */}
           {isAuthenticated ? (
-            <Link href="/profile" aria-label="Profile" className="group hidden h-11 items-center gap-2 rounded-lg px-1.5 transition-colors sm:flex">
+            <Link href="/profile" aria-label="Profile" className="group flex h-11 items-center gap-2 rounded-lg px-1.5 transition-colors">
               <span className="flex h-8.5 w-8.5 items-center justify-center rounded-full bg-brand-green text-xs font-bold text-white transition-colors group-hover:bg-hover-text group-hover:text-background">{profileInitial}</span>
 
               <span className="hidden xl:block">
@@ -377,7 +425,7 @@ export default function Navbar() {
               </span>
             </Link>
           ) : (
-            <Link href="/sign-in" className="hidden h-10 items-center whitespace-nowrap rounded-lg px-3 text-sm font-bold text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text sm:flex">
+            <Link href="/sign-in" className="flex h-10 items-center whitespace-nowrap rounded-lg px-3 text-sm font-bold text-text-primary transition-colors hover:bg-hover-background hover:text-hover-text">
               Sign In
             </Link>
           )}
