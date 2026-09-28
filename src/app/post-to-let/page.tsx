@@ -116,7 +116,6 @@ const textareaClass = "mt-2 min-h-28 w-full resize-y rounded-lg border border-bo
 
 const MAX_PHOTOS = 10;
 const MAX_VIDEOS = 2;
-
 const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
 
@@ -181,14 +180,48 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
 export default function PostToLetPage() {
   const router = useRouter();
 
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [form, setForm] = useState<ListingForm>(initialForm);
   const [postRole, setPostRole] = useState<PostRole>("owner");
-
   const [reviewing, setReviewing] = useState(false);
-
   const [uploadingMedia, setUploadingMedia] = useState(false);
-
   const [submitting, setSubmitting] = useState(false);
+
+  /*
+   * Protect the page.
+   *
+   * If the user is not authenticated, send them to sign-up
+   * and preserve the destination so the sign-up page can return
+   * them to the listing form after authentication.
+   */
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkAuthentication() {
+      const supabase = createClient();
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!user) {
+        router.replace("/sign-in?redirect=/post-to-let");
+        return;
+      }
+
+      setCheckingAuth(false);
+    }
+
+    checkAuthentication();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
 
   useEffect(() => {
     return () => {
@@ -396,9 +429,7 @@ export default function PostToLetPage() {
 
       const addressLine = addressParts.join(", ");
 
-      /*
-       * Property
-       */
+      // Property
       const { data: property, error: propertyError } = await supabase
         .from("properties")
         .insert({
@@ -418,11 +449,8 @@ export default function PostToLetPage() {
         throw propertyError ?? new Error("Failed to create property.");
       }
 
-      /*
-       * Property unit
-       *
-       * Garage listings do not need a property unit.
-       */
+      // Property unit
+      // Garage listings do not need a property unit.
       let unitId: string | null = null;
 
       if (form.propertyType !== "Garage") {
@@ -449,9 +477,7 @@ export default function PostToLetPage() {
         unitId = unit.id;
       }
 
-      /*
-       * Listing details
-       */
+      // Listing details
       const details = {
         property: {
           property_type: form.propertyType,
@@ -464,11 +490,8 @@ export default function PostToLetPage() {
 
         occupancy: {
           suitable_for: form.propertyType === "Apartment" ? form.suitableFor : null,
-
           gender: form.propertyType === "Room" || form.propertyType === "Seat" ? form.gender : null,
-
           room_capacity: form.propertyType === "Room" || form.propertyType === "Seat" ? (form.roomCapacity ? Number(form.roomCapacity) : null) : null,
-
           available_seats: form.propertyType === "Seat" && form.availableSeats ? Number(form.availableSeats) : null,
         },
 
@@ -482,51 +505,37 @@ export default function PostToLetPage() {
 
         facilities: {
           lift: form.propertyType === "Garage" ? null : form.lift,
-
           generator: form.propertyType === "Garage" ? null : form.generator,
-
           security_guard: form.security,
-
           cctv: form.cctv,
-
           cctv_coverage: form.cctv ? form.cctvCoverage || null : null,
         },
 
         gate: {
           access: form.gateAccess,
-
           open_from: form.gateAccess === "fixed" ? form.gateOpenFrom || null : null,
-
           open_to: form.gateAccess === "fixed" ? form.gateOpenTo || null : null,
         },
 
         parking: {
           bike: {
             available: form.propertyType === "Garage" ? null : form.bikeParking,
-
             charge_type: form.propertyType === "Garage" ? null : form.bikeParking ? form.bikeParkingCharge : null,
-
             monthly_charge: form.propertyType === "Garage" ? null : form.bikeParking && form.bikeParkingCharge === "extra" && form.bikeParkingChargeAmount.trim() ? Number(form.bikeParkingChargeAmount) : null,
           },
 
           car: {
             available: form.propertyType === "Garage" ? null : form.carParking,
-
             charge_type: form.propertyType === "Garage" ? null : form.carParking ? form.carParkingCharge : null,
-
             monthly_charge: form.propertyType === "Garage" ? null : form.carParking && form.carParkingCharge === "extra" && form.carParkingChargeAmount.trim() ? Number(form.carParkingChargeAmount) : null,
           },
         },
 
         costs: {
           monthly_rent: form.rent ? Number(form.rent) : null,
-
           service_charge: form.serviceCharge ? Number(form.serviceCharge) : null,
-
           utility_details: form.utilityDetails || null,
-
           other_charges: form.otherCharges || null,
-
           security_deposit: form.propertyType === "Garage" && form.securityDeposit ? Number(form.securityDeposit) : null,
         },
 
@@ -534,64 +543,43 @@ export default function PostToLetPage() {
           form.propertyType === "Garage"
             ? {
                 vehicle_type: form.vehicleType,
-
                 garage_type: form.garageType,
-
                 size_sqft: form.size ? Number(form.size) : null,
               }
             : null,
       };
 
-      /*
-       * Listing
-       *
-       * source describes how the listing
-       * entered the system.
-       *
-       * post_role describes who is posting:
-       * owner or community.
-       *
-       * The database trigger validates and
-       * assigns owner_profile_id.
-       */
+      // Listing
+      //
+      // source describes how the listing entered the system.
+      //
+      // post_role describes who is posting:
+      // owner or community.
+      //
+      // The database trigger validates and assigns owner_profile_id.
       const { data: listing, error: listingError } = await supabase
         .from("listings")
         .insert({
           property_id: property.id,
           unit_id: unitId,
-
           created_by: user.id,
 
-          /*
-           * The trigger controls owner_profile_id.
-           * Do not manually assign it here.
-           */
+          // The trigger controls owner_profile_id.
+          // Do not manually assign it here.
           owner_profile_id: null,
 
           listing_type: listingType,
-
           source: "community",
-
           post_role: postRole,
-
           title,
-
           description: form.description || null,
-
           monthly_rent: form.rent ? Number(form.rent) : null,
-
           service_charge: form.serviceCharge ? Number(form.serviceCharge) : null,
-
           available_from: form.availableFrom || null,
-
           security_deposit: form.propertyType === "Garage" && form.securityDeposit ? Number(form.securityDeposit) : null,
-
           publication_status: "pending_review",
-
           rental_lifecycle: "active",
-
           availability_state: "needs_confirmation",
-
           details,
         })
         .select("id")
@@ -601,9 +589,7 @@ export default function PostToLetPage() {
         throw listingError ?? new Error("Failed to create listing.");
       }
 
-      /*
-       * Listing-specific contact number
-       */
+      // Listing-specific contact number
       const { error: contactError } = await supabase.from("listing_contacts").insert({
         listing_id: listing.id,
         contact_type: "phone",
@@ -617,19 +603,13 @@ export default function PostToLetPage() {
         throw contactError;
       }
 
-      /*
-       * Apartment tenant preference
-       */
+      // Apartment tenant preference
       if (form.propertyType === "Apartment" && form.suitableFor) {
         const { error: preferenceError } = await supabase.from("listing_preferences").insert({
           listing_id: listing.id,
-
           tenant_preference: form.suitableFor.toLowerCase(),
-
           family_allowed: form.suitableFor === "Family" || form.suitableFor === "Both",
-
           male_bachelors_allowed: form.suitableFor === "Bachelor" || form.suitableFor === "Both",
-
           female_bachelors_allowed: form.suitableFor === "Bachelor" || form.suitableFor === "Both",
         });
 
@@ -638,9 +618,7 @@ export default function PostToLetPage() {
         }
       }
 
-      /*
-       * Room / seat preference
-       */
+      // Room / seat preference
       if (form.propertyType === "Room" || form.propertyType === "Seat") {
         const { error: preferenceError } = await supabase.from("listing_preferences").insert({
           listing_id: listing.id,
@@ -653,9 +631,7 @@ export default function PostToLetPage() {
         }
       }
 
-      /*
-       * Listing media
-       */
+      // Listing media
       if (form.media.length > 0) {
         const mediaRows = form.media.map((media, index) => ({
           listing_id: listing.id,
@@ -673,14 +649,11 @@ export default function PostToLetPage() {
         }
       }
 
-      /*
-       * Listing event
-       */
+      // Listing event
       const { error: eventError } = await supabase.from("listing_events").insert({
         listing_id: listing.id,
         actor_id: user.id,
         event_type: "created",
-
         event_data: {
           source: "community",
           post_role: postRole,
@@ -792,6 +765,26 @@ export default function PostToLetPage() {
           </div>
         </div>
       </Section>
+    );
+  }
+
+  /*
+   * While Supabase checks the current session, don't render
+   * the listing form. This prevents an unauthenticated user
+   * from briefly seeing the protected page.
+   */
+  if (checkingAuth) {
+    return (
+      <main className="min-h-screen bg-background">
+        <Navbar />
+
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="flex items-center gap-3 text-sm font-bold text-text-secondary">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-brand-green" />
+            Checking your account...
+          </div>
+        </div>
+      </main>
     );
   }
 
@@ -1314,18 +1307,8 @@ export default function PostToLetPage() {
                   </div>
                 </div>
 
-                {/*
-                 * IMPORTANT:
-                 *
-                 * This is intentionally grid-cols-2
-                 * WITHOUT sm/md/lg prefixes.
-                 *
-                 * Therefore Photos and Videos
-                 * always occupy separate columns
-                 * on laptop/desktop.
-                 */}
                 <div className="mt-5 grid w-full grid-cols-2 gap-8">
-                  {/* PHOTOS COLUMN */}
+                  {/* Photos column */}
                   <div className="min-w-0">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <span className="text-sm font-bold text-text-primary">Photos</span>
@@ -1360,7 +1343,7 @@ export default function PostToLetPage() {
                     )}
                   </div>
 
-                  {/* VIDEOS COLUMN */}
+                  {/* Videos column */}
                   <div className="min-w-0">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <span className="text-sm font-bold text-text-primary">Videos</span>
