@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Home, LogOut, ShieldCheck, UserRound, XCircle } from "lucide-react";
@@ -84,9 +85,10 @@ export default async function ProfilePage() {
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  if (authError || !user) {
     redirect("/sign-in");
   }
 
@@ -117,11 +119,8 @@ export default async function ProfilePage() {
   }
 
   const userListings: Listing[] = listings ?? [];
-
   const metadata = user.user_metadata ?? {};
-
   const displayName = metadata.full_name || metadata.name || user.email?.split("@")[0] || "User";
-
   const avatarUrl = metadata.avatar_url || metadata.picture || null;
 
   async function signOut() {
@@ -129,8 +128,14 @@ export default async function ProfilePage() {
 
     const supabase = await createClient();
 
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
 
+    if (error) {
+      console.error("SIGN OUT ERROR:", error);
+      throw new Error("Failed to sign out. Please try again.");
+    }
+
+    revalidatePath("/", "layout");
     redirect("/sign-in");
   }
 
@@ -140,32 +145,34 @@ export default async function ProfilePage() {
     const listingId = String(formData.get("listingId") ?? "").trim();
 
     if (!listingId) {
-      return;
+      throw new Error("Missing listing ID.");
     }
 
     const supabase = await createClient();
 
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    if (authError || !user) {
       redirect("/sign-in");
     }
 
-    const { error } = await supabase
-      .from("listings")
-      .update({
-        rental_lifecycle: "rented",
-      })
-      .eq("id", listingId)
-      .eq("created_by", user.id);
+    const { data, error } = await supabase.from("listings").update({ rental_lifecycle: "rented" }).eq("id", listingId).eq("created_by", user.id).select("id");
 
     if (error) {
       console.error("MARK LISTING AS RENTED ERROR:", error);
       throw new Error("Failed to mark the listing as rented.");
     }
 
+    if (!data || data.length === 0) {
+      console.error("MARK LISTING AS RENTED: No listing updated. Check ownership and RLS policies.");
+      throw new Error("The listing was not updated. Check permissions and try again.");
+    }
+
+    revalidatePath("/profile");
+    revalidatePath("/rentals");
     redirect("/profile");
   }
 
@@ -175,32 +182,34 @@ export default async function ProfilePage() {
     const listingId = String(formData.get("listingId") ?? "").trim();
 
     if (!listingId) {
-      return;
+      throw new Error("Missing listing ID.");
     }
 
     const supabase = await createClient();
 
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    if (authError || !user) {
       redirect("/sign-in");
     }
 
-    const { error } = await supabase
-      .from("listings")
-      .update({
-        rental_lifecycle: "active",
-      })
-      .eq("id", listingId)
-      .eq("created_by", user.id);
+    const { data, error } = await supabase.from("listings").update({ rental_lifecycle: "active" }).eq("id", listingId).eq("created_by", user.id).select("id");
 
     if (error) {
       console.error("MARK LISTING AS AVAILABLE ERROR:", error);
       throw new Error("Failed to mark the listing as available.");
     }
 
+    if (!data || data.length === 0) {
+      console.error("MARK LISTING AS AVAILABLE: No listing updated. Check ownership and RLS policies.");
+      throw new Error("The listing was not updated. Check permissions and try again.");
+    }
+
+    revalidatePath("/profile");
+    revalidatePath("/rentals");
     redirect("/profile");
   }
 
@@ -210,26 +219,34 @@ export default async function ProfilePage() {
     const listingId = String(formData.get("listingId") ?? "").trim();
 
     if (!listingId) {
-      return;
+      throw new Error("Missing listing ID.");
     }
 
     const supabase = await createClient();
 
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    if (authError || !user) {
       redirect("/sign-in");
     }
 
-    const { error } = await supabase.from("listings").delete().eq("id", listingId).eq("created_by", user.id);
+    const { data, error } = await supabase.from("listings").delete().eq("id", listingId).eq("created_by", user.id).select("id");
 
     if (error) {
       console.error("REMOVE LISTING ERROR:", error);
       throw new Error("Failed to remove the listing.");
     }
 
+    if (!data || data.length === 0) {
+      console.error("REMOVE LISTING: No listing deleted. Check ownership and RLS policies.");
+      throw new Error("The listing was not removed. Check permissions and try again.");
+    }
+
+    revalidatePath("/profile");
+    revalidatePath("/rentals");
     redirect("/profile");
   }
 
@@ -261,7 +278,6 @@ export default async function ProfilePage() {
 
                 <div className="min-w-0">
                   <h2 className="truncate text-2xl font-extrabold">{displayName}</h2>
-
                   <p className="mt-1 truncate text-sm text-text-secondary">{user.email}</p>
                 </div>
               </div>
@@ -269,19 +285,16 @@ export default async function ProfilePage() {
               <div className="pt-2">
                 <div className="border-b border-border py-5">
                   <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-muted">Name</p>
-
                   <p className="mt-1 text-sm font-semibold text-text-primary">{displayName}</p>
                 </div>
 
                 <div className="border-b border-border py-5">
                   <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-muted">Email</p>
-
                   <p className="mt-1 break-all text-sm font-semibold text-text-primary">{user.email ?? "Not available"}</p>
                 </div>
 
                 <div className="py-5">
                   <p className="text-xs font-bold uppercase tracking-[0.08em] text-text-muted">Account</p>
-
                   <p className="mt-1 text-sm font-semibold text-text-primary">{isAdmin ? "User & Administrator" : "User"}</p>
                 </div>
               </div>
@@ -292,9 +305,7 @@ export default async function ProfilePage() {
               <div className="flex items-start justify-between gap-4 border-b border-border pb-6">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.08em] text-brand-green">Your activity</p>
-
                   <h2 className="mt-1 text-xl font-extrabold text-text-primary">My listings</h2>
-
                   <p className="mt-2 text-sm leading-6 text-text-secondary">View and manage the properties you have posted on Virtual To-let.</p>
                 </div>
 
@@ -307,11 +318,8 @@ export default async function ProfilePage() {
               {userListings.length === 0 ? (
                 <div className="py-12 text-center">
                   <Home className="mx-auto h-9 w-9 text-text-muted" strokeWidth={1.5} />
-
                   <h3 className="mt-4 text-lg font-bold text-text-primary">No listings yet</h3>
-
                   <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text-secondary">You have not posted any listings yet.</p>
-
                   <Link href="/post-to-let" className="mt-6 inline-flex h-11 items-center gap-2 rounded-lg bg-text px-5 text-sm font-bold text-background transition-opacity hover:opacity-85">
                     Post a TO-LET
                     <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
@@ -355,7 +363,6 @@ export default async function ProfilePage() {
                             {isActive && (
                               <form action={markAsRented}>
                                 <input type="hidden" name="listingId" value={listing.id} />
-
                                 <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-red/20 bg-brand-red/5 px-4 text-sm font-bold text-brand-red transition-colors hover:bg-brand-red/10">
                                   Mark as Rented
                                   <XCircle className="h-4 w-4" strokeWidth={1.8} />
@@ -366,7 +373,6 @@ export default async function ProfilePage() {
                             {isRented && (
                               <form action={markAsAvailable}>
                                 <input type="hidden" name="listingId" value={listing.id} />
-
                                 <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand-green/20 bg-brand-green/5 px-4 text-sm font-bold text-brand-green transition-colors hover:bg-brand-green/10">
                                   Mark as Available
                                   <CheckCircle2 className="h-4 w-4" strokeWidth={1.8} />
@@ -376,7 +382,6 @@ export default async function ProfilePage() {
 
                             <form action={removeListing}>
                               <input type="hidden" name="listingId" value={listing.id} />
-
                               <button type="submit" className="inline-flex h-10 items-center rounded-lg border border-border px-4 text-sm font-bold text-text-secondary transition-colors hover:border-brand-red/20 hover:bg-brand-red/5 hover:text-brand-red">
                                 Remove
                               </button>
@@ -402,7 +407,6 @@ export default async function ProfilePage() {
               <section className="rounded-2xl border border-border bg-surface p-6">
                 <div className="mb-4 flex items-center gap-3">
                   <ShieldCheck className="h-5 w-5 text-brand-green" strokeWidth={1.8} />
-
                   <h2 className="font-bold">Administration</h2>
                 </div>
 
@@ -410,7 +414,6 @@ export default async function ProfilePage() {
 
                 <Link href="/admin" target="_blank" rel="noopener noreferrer" className="group flex h-11 w-full items-center justify-between rounded-lg border border-border px-4 text-sm font-bold transition hover:border-hover-border hover:bg-hover-background hover:text-hover-text">
                   <span>Admin Dashboard</span>
-
                   <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" strokeWidth={1.8} />
                 </Link>
               </section>
@@ -418,13 +421,11 @@ export default async function ProfilePage() {
 
             <section className="rounded-2xl border border-border bg-surface p-6">
               <h2 className="mb-2 font-bold">Account actions</h2>
-
               <p className="mb-5 text-sm leading-6 text-text-secondary">Sign out of your Virtual To-let account.</p>
 
               <form action={signOut}>
                 <button type="submit" className="group flex h-11 w-full items-center justify-between rounded-lg border border-border px-4 text-sm font-bold transition hover:border-hover-border hover:bg-hover-background hover:text-hover-text">
                   <span>Sign out</span>
-
                   <LogOut className="h-4 w-4" strokeWidth={1.8} />
                 </button>
               </form>
