@@ -379,13 +379,6 @@ export default async function ProfilePage() {
                                 </button>
                               </form>
                             )}
-
-                            <form action={removeListing}>
-                              <input type="hidden" name="listingId" value={listing.id} />
-                              <button type="submit" className="inline-flex h-10 items-center rounded-lg border border-border px-4 text-sm font-bold text-text-secondary transition-colors hover:border-brand-red/20 hover:bg-brand-red/5 hover:text-brand-red">
-                                Remove
-                              </button>
-                            </form>
                           </div>
                         </div>
                       </div>
