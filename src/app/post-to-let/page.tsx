@@ -568,7 +568,7 @@ export default function PostToLetPage() {
           service_charge: form.serviceCharge ? Number(form.serviceCharge) : null,
           available_from: form.availableFrom || null,
           security_deposit: form.propertyType === "Garage" && form.securityDeposit ? Number(form.securityDeposit) : null,
-          publication_status: "pending_review",
+          publication_status: "published",
           rental_lifecycle: "active",
           availability_state: "needs_confirmation",
           details,
@@ -641,8 +641,8 @@ export default function PostToLetPage() {
 
       if (eventError) throw eventError;
 
-      window.alert("Your listing has been submitted for verification.");
-      router.replace("/");
+      window.alert("Your listing has been published successfully!");
+      router.push("/rentals");
       router.refresh();
     } catch (error) {
       console.error("LISTING SUBMISSION ERROR:", error);
@@ -754,7 +754,7 @@ export default function PostToLetPage() {
           <div className="mb-10">
             <p className="mb-3 text-xs font-bold tracking-[0.2em] text-brand-green">REVIEW LISTING</p>
             <h1 className="text-3xl font-extrabold tracking-tight text-text-primary sm:text-4xl">Review your listing</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-text-secondary">Check the information below before submitting your listing for verification.</p>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-text-secondary">Check your listing details before publishing. Your listing will be visible to tenants once published.</p>
           </div>
 
           <div className="rounded-xl border border-border bg-background px-6 sm:px-8">
@@ -882,8 +882,8 @@ export default function PostToLetPage() {
               Edit listing
             </button>
 
-            <button type="button" onClick={handleSubmit} disabled={submitting} className="h-12 rounded-lg bg-brand-green px-7 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
-              {submitting ? "Submitting..." : "Submit for verification"}
+            <button type="button" onClick={handleSubmit} disabled={submitting || uploadingMedia} className="h-12 rounded-lg bg-brand-green px-7 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+              {submitting ? "Publishing..." : "Publish Listing"}
             </button>
           </div>
         </div>
@@ -1318,7 +1318,7 @@ export default function PostToLetPage() {
 
           <div className="mt-8 flex justify-end">
             <button type="submit" disabled={uploadingMedia} className="inline-flex h-12 items-center gap-2 rounded-lg bg-brand-green px-7 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
-              Review & Preview
+              Review Listing
               <ShieldCheck className="h-4 w-4" strokeWidth={2} />
             </button>
           </div>
