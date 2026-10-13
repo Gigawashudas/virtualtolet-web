@@ -3,6 +3,7 @@ import { Manrope } from "next/font/google";
 
 import "./globals.css";
 import ThemeProvider from "@/components/ThemeProvider";
+import { Analytics } from "@vercel/analytics/next";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -22,6 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${manrope.variable} antialiased`}>
+        <Analytics />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
