@@ -17,7 +17,7 @@ const roomTypes = [
   },
   {
     number: "03",
-    label: "Couple",
+    label: "Family",
     href: "/rentals/room/couple",
   },
 ];

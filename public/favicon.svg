@@ -1,0 +1,50 @@
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 100 100"
+>
+  <rect width="100" height="100" rx="20" fill="#FFFFFF"/>
+
+  <!-- House roof -->
+  <path
+    d="M12 43 L50 12 L88 43"
+    fill="none"
+    stroke="#006B4F"
+    stroke-width="8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- House body -->
+  <path
+    d="M23 39 V76 Q23 81 28 81 H72 Q77 81 77 76 V39 L50 18 Z"
+    fill="#006B4F"
+  />
+
+  <!-- White house interior -->
+  <path
+    d="M35 43 L50 31 L65 43 V72 H35 Z"
+    fill="#FFFFFF"
+  />
+
+  <!-- Windows -->
+  <g fill="#20252B">
+    <rect x="41" y="43" width="7" height="7" rx="1"/>
+    <rect x="52" y="43" width="7" height="7" rx="1"/>
+    <rect x="41" y="54" width="7" height="7" rx="1"/>
+    <rect x="52" y="54" width="7" height="7" rx="1"/>
+  </g>
+
+  <!-- Location pin -->
+  <path
+    d="M50 42
+       C38 42 31 50 31 61
+       C31 75 50 91 50 91
+       C50 91 69 75 69 61
+       C69 50 62 42 50 42 Z"
+    fill="#F5222D"
+  />
+
+  <!-- Pin center -->
+  <circle cx="50" cy="60" r="7" fill="#FFFFFF"/>
+</svg>
